@@ -1,8 +1,19 @@
-﻿using System.IO;
+﻿using System.Reflection;
+
+using Amazon;
+
+using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
 
 using Autofac.Extensions.DependencyInjection;
 
-using Microsoft.AspNetCore.Hosting;
+
+
+using NuClear.VStore.Configuration;
+using NuClear.VStore.Host.Logging;
+
+using Serilog;
+using Serilog.Events;
 
 namespace NuClear.VStore.Host
 {
@@ -10,14 +21,42 @@ namespace NuClear.VStore.Host
     {
         public static void Main(string[] args)
         {
-            var host = new WebHostBuilder()
-                .UseKestrel()
-                .ConfigureServices(services => services.AddAutofac())
-                .UseContentRoot(Directory.GetCurrentDirectory())
-                .UseStartup<Startup>()
-                .Build();
+            var webHost = BuildWebHost(args);
+            ConfigureAwsLogging();
+            webHost.Run();
+        }
 
-            host.Run();
+        private static IWebHost BuildWebHost(string[] args) =>
+            WebHost.CreateDefaultBuilder(args)
+                   .ConfigureServices(services => services.AddAutofac())
+                   .ConfigureAppConfiguration((hostingContext, config) =>
+                                                  {
+                                                      var env = hostingContext.HostingEnvironment;
+                                                      config.UseDefaultConfiguration(env.ContentRootPath, env.EnvironmentName);
+                                                  })
+                   .UseStartup<Startup>()
+                   .UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration))
+                   .Build();
+
+        private static void ConfigureAwsLogging()
+        {
+            var log4NetLevel = Log.IsEnabled(LogEventLevel.Verbose) ? "ALL"
+                               : Log.IsEnabled(LogEventLevel.Debug) ? "DEBUG"
+                               : Log.IsEnabled(LogEventLevel.Information) ? "INFO"
+                               : Log.IsEnabled(LogEventLevel.Warning) ? "WARN"
+                               : Log.IsEnabled(LogEventLevel.Error) ? "ERROR"
+                               : Log.IsEnabled(LogEventLevel.Fatal) ? "FATAL" : "OFF";
+
+            var serilogAppender = new SerilogAppender(Log.Logger);
+            serilogAppender.ActivateOptions();
+            var log = log4net.LogManager.GetLogger(Assembly.GetEntryAssembly(), "Amazon");
+            var wrapper = (log4net.Repository.Hierarchy.Logger)log.Logger;
+            wrapper.Level = wrapper.Hierarchy.LevelMap[log4NetLevel];
+            wrapper.AddAppender(serilogAppender);
+            wrapper.Repository.Configured = true;
+
+            AWSConfigs.LoggingConfig.LogTo = LoggingOptions.Log4Net;
+            AWSConfigs.LoggingConfig.LogMetricsFormat = LogMetricsFormatOption.Standard;
         }
     }
 }

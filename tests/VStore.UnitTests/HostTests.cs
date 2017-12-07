@@ -18,6 +18,7 @@ using Moq;
 
 using Newtonsoft.Json.Linq;
 
+using NuClear.VStore.Configuration;
 using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Host;
 using NuClear.VStore.Locks;
@@ -43,6 +44,11 @@ namespace VStore.UnitTests
             _server = new TestServer(
                 new WebHostBuilder()
                     .UseEnvironment(EnvironmentName.Development)
+                    .ConfigureAppConfiguration((hostingContext, config) =>
+                                                   {
+                                                       var env = hostingContext.HostingEnvironment;
+                                                       config.UseDefaultConfiguration(env.ContentRootPath, env.EnvironmentName);
+                                                   })
                     .ConfigureServices(
                         services =>
                             {

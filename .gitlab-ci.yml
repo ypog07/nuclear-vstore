@@ -15,7 +15,7 @@ before_script:
 # ================= Test & Build =================
 
 build:app:
-  image: $REGISTRY/microsoft/aspnetcore-build:1.1.4
+  image: $REGISTRY/microsoft/aspnetcore-build:2.0.3-jessie
   stage: build:app
   when: always
   script:
@@ -58,7 +58,6 @@ build:vstore-worker-image:
 build:cloning-tool-image:
   stage: build:image
   when: manual
-  allow_failure: false
   script:
     - IMAGE=ams/cloning-tool TAG=$CI_TAG DOCKER_FILE=publish/cloning-tool/Dockerfile DOCKER_BUILD_CONTEXT=publish/cloning-tool make docker-build
     - IMAGE=ams/cloning-tool TAG=$CI_TAG make docker-push

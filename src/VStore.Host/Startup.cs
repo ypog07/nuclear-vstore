@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Text;
 
-using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 
 using Autofac;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
@@ -33,7 +30,6 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
 using NuClear.VStore.Host.Json;
-using NuClear.VStore.Host.Logging;
 using NuClear.VStore.Host.Middleware;
 using NuClear.VStore.Host.Options;
 using NuClear.VStore.Host.Routing;
@@ -56,9 +52,6 @@ using RedLockNet;
 using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
 
-using Serilog;
-using Serilog.Events;
-
 using Swashbuckle.AspNetCore.Swagger;
 
 namespace NuClear.VStore.Host
@@ -80,31 +73,23 @@ namespace NuClear.VStore.Host
                 new ObjectDescriptorJsonConverter()
             };
 
-        private readonly IConfigurationRoot _configuration;
+        private readonly IConfiguration _configuration;
 
-        public Startup(IHostingEnvironment env)
+        public Startup(IConfiguration configuration)
         {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json")
-                .AddJsonFile($"appsettings.{env.EnvironmentName?.ToLower()}.json")
-                .AddEnvironmentVariables("VSTORE_");
-
-            _configuration = builder.Build();
-
-            ConfigureLogger();
+            _configuration = configuration;
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        // ReSharper disable once UnusedMember.Global
         public void ConfigureServices(IServiceCollection services)
         {
+            var jwtConfiguration = _configuration.GetSection("Jwt");
             services
                  .AddOptions()
                  .Configure<CephOptions>(_configuration.GetSection("Ceph"))
                  .Configure<DistributedLockOptions>(_configuration.GetSection("DistributedLocks"))
                  .Configure<VStoreOptions>(_configuration.GetSection("VStore"))
-                 .Configure<JwtOptions>(_configuration.GetSection("Jwt"))
+                 .Configure<JwtOptions>(jwtConfiguration)
                  .Configure<KafkaOptions>(_configuration.GetSection("Kafka"))
                  .Configure<RouteOptions>(options => options.ConstraintMap.Add("lang", typeof(LanguageRouteConstraint)));
 
@@ -133,6 +118,29 @@ namespace NuClear.VStore.Host
                                     settings.Converters.Insert(index, CustomConverters[index]);
                                 }
                             });
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(options =>
+                                      {
+                                          var jwtOptions = jwtConfiguration.Get<JwtOptions>();
+                                          options.TokenValidationParameters = new TokenValidationParameters
+                                              {
+                                                  ValidateIssuer = true,
+                                                  ValidIssuer = jwtOptions.Issuer,
+
+                                                  ValidateAudience = false,
+
+                                                  ValidateIssuerSigningKey = true,
+                                                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtOptions.SecretKey)),
+
+                                                  ValidateLifetime = false,
+                                                  LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
+                                                                          {
+                                                                              var utcNow = DateTime.UtcNow;
+                                                                              return !(notBefore > utcNow || utcNow > expires);
+                                                                          }
+                                              };
+                                      });
 
             services.AddApiVersioning(options => options.ReportApiVersions = true);
             services.AddMemoryCache();
@@ -285,17 +293,8 @@ namespace NuClear.VStore.Host
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        // ReSharper disable once UnusedMember.Global
-        public void Configure(IApplicationBuilder app,
-            IHostingEnvironment env,
-            ILoggerFactory loggerFactory,
-            IApplicationLifetime appLifetime)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            loggerFactory.AddSerilog();
-
-            // Ensure any buffered events are sent at shutdown
-            appLifetime.ApplicationStopped.Register(Log.CloseAndFlush);
-
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
                     {
@@ -328,31 +327,7 @@ namespace NuClear.VStore.Host
             app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
 
-            var jwtOptions = app.ApplicationServices.GetRequiredService<JwtOptions>();
-            app.UseJwtBearerAuthentication(
-                new JwtBearerOptions
-                    {
-                        AutomaticAuthenticate = true,
-                        AutomaticChallenge = true,
-                        TokenValidationParameters =
-                            new TokenValidationParameters
-                                {
-                                    ValidateIssuer = true,
-                                    ValidIssuer = jwtOptions.Issuer,
-
-                                    ValidateAudience = false,
-
-                                    ValidateIssuerSigningKey = true,
-                                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtOptions.SecretKey)),
-
-                                    ValidateLifetime = false,
-                                    LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
-                                                            {
-                                                                var utcNow = DateTime.UtcNow;
-                                                                return !(notBefore > utcNow || utcNow > expires);
-                                                            }
-                                }
-                    });
+            app.UseAuthentication();
 
             app.UseMvc();
 
@@ -373,35 +348,6 @@ namespace NuClear.VStore.Host
                             options.ShowRequestHeaders();
                         });
             }
-        }
-
-        private static void AttachToLog4Net(Serilog.ILogger logger, string loggerName, string level)
-        {
-            var serilogAppender = new SerilogAppender(logger);
-            serilogAppender.ActivateOptions();
-            var log = log4net.LogManager.GetLogger(Assembly.GetEntryAssembly(), loggerName);
-            var wrapper = (log4net.Repository.Hierarchy.Logger)log.Logger;
-            wrapper.Level = wrapper.Hierarchy.LevelMap[level];
-            wrapper.AddAppender(serilogAppender);
-            wrapper.Repository.Configured = true;
-        }
-
-        private void ConfigureLogger()
-        {
-            var loggerConfiguration = new LoggerConfiguration().ReadFrom.Configuration(_configuration);
-            Log.Logger = loggerConfiguration.CreateLogger();
-
-            var log4NetLevel = Log.IsEnabled(LogEventLevel.Verbose) ? "ALL"
-                                   : Log.IsEnabled(LogEventLevel.Debug) ? "DEBUG"
-                                       : Log.IsEnabled(LogEventLevel.Information) ? "INFO"
-                                           : Log.IsEnabled(LogEventLevel.Warning) ? "WARN"
-                                               : Log.IsEnabled(LogEventLevel.Error) ? "ERROR"
-                                                   : Log.IsEnabled(LogEventLevel.Fatal) ? "FATAL" : "OFF";
-
-            AttachToLog4Net(Log.Logger, "Amazon", log4NetLevel);
-
-            AWSConfigs.LoggingConfig.LogTo = LoggingOptions.Log4Net;
-            AWSConfigs.LoggingConfig.LogMetricsFormat = LogMetricsFormatOption.Standard;
         }
     }
 }
