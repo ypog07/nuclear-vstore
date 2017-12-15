@@ -15,7 +15,7 @@ before_script:
 # ================= Test & Build =================
 
 build:app:
-  image: $REGISTRY/microsoft/aspnetcore-build:2.0.3-jessie
+  image: $REGISTRY/microsoft/aspnetcore-build:2.0.4-2.1.3-jessie
   stage: build:app
   when: always
   script:
@@ -23,7 +23,6 @@ build:app:
     - dotnet test tests/VStore.UnitTests/VStore.UnitTests.csproj --configuration Release
     - dotnet publish src/VStore.Host --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore
     - dotnet publish src/VStore.Worker --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore-worker
-    - dotnet publish src/CloningTool --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/cloning-tool
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}"
@@ -31,6 +30,19 @@ build:app:
     paths:
       - publish/vstore/
       - publish/vstore-worker/
+
+build:cloning-tool:
+  image: $REGISTRY/microsoft/dotnet:2.0.4-sdk-2.1.3-stretch
+  stage: build:app
+  when: manual
+  script:
+    - dotnet restore --runtime ubuntu.14.04-x64
+    - dotnet publish src/CloningTool --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/cloning-tool
+  tags: [ 2gis, docker ]
+  artifacts:
+    name: "${CI_COMMIT_REF_NAME}"
+    expire_in: '1 week'
+    paths:
       - publish/cloning-tool/
 
 build:vstore-image:
@@ -63,7 +75,7 @@ build:cloning-tool-image:
     - IMAGE=ams/cloning-tool TAG=$CI_TAG make docker-push
   tags: [ docker-engine, io ]
   dependencies:
-    - build:app
+    - build:cloning-tool
 
 # ================ Deploy =================
 
