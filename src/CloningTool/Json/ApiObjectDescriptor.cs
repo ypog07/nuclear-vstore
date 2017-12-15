@@ -18,5 +18,6 @@ namespace CloningTool.Json
         public string VersionId { get; set; }
         public DateTime LastModified { get; set; }
         public FirmDescriptor Firm { get; set; }
+        public ModerationResult Moderation { get; set; }
     }
 }
