@@ -36,7 +36,6 @@ build:cloning-tool:
   stage: build:app
   when: manual
   script:
-    - dotnet restore --runtime ubuntu.14.04-x64
     - dotnet publish src/CloningTool --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/cloning-tool
   tags: [ 2gis, docker ]
   artifacts:
