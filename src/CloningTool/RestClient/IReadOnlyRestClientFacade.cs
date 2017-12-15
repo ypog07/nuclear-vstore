@@ -10,7 +10,6 @@ namespace CloningTool.RestClient
 {
     public interface IReadOnlyRestClientFacade
     {
-        Task<string> GetAdvertisementVersionAsync(long id);
         Task<IReadOnlyCollection<PositionDescriptor>> GetContentPositionsAsync();
         Task<TemplateDescriptor> GetTemplateAsync(string templateId);
         Task<IReadOnlyCollection<ApiListTemplate>> GetTemplatesAsync();
