@@ -180,18 +180,18 @@ namespace CloningTool.CloneStrategies
 
         private async Task CloneAdvertisementAsync(ApiListAdvertisement advertisement, bool fetchAdvertisementBeforeCloning)
         {
-            var versionId = string.Empty;
+            ApiObjectDescriptor destDescriptor = null;
             var objectId = advertisement.Id.ToString();
             if (fetchAdvertisementBeforeCloning)
             {
-                versionId = await DestRestClient.GetAdvertisementVersionAsync(advertisement.Id);
-                _logger.LogInformation("Object {id} has been fetched from destination preliminarily with version {versionId}", objectId, versionId);
+                destDescriptor = await DestRestClient.GetAdvertisementAsync(advertisement.Id);
+                _logger.LogInformation("Object {id} has been fetched from destination preliminarily with version {versionId}", objectId, destDescriptor.VersionId);
             }
 
-            if (string.IsNullOrEmpty(versionId))
+            var versionId = destDescriptor?.VersionId;
+            var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(advertisement.Id);
+            if (destDescriptor == null)
             {
-                var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(advertisement.Id);
-                sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                 if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type)))
                 {
                     var newAm = await DestRestClient.CreateAdvertisementPrototypeAsync(advertisement.Template.Id, advertisement.Language.ToString(), advertisement.Firm.Id);
@@ -200,6 +200,7 @@ namespace CloningTool.CloneStrategies
 
                 try
                 {
+                    sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                     versionId = await DestRestClient.CreateAdvertisementAsync(advertisement.Id, advertisement.Firm.Id, sourceDescriptor);
                 }
                 catch (ObjectAlreadyExistsException ex)
@@ -214,19 +215,19 @@ namespace CloningTool.CloneStrategies
                 Interlocked.Increment(ref _selectedToWhitelistCount);
             }
 
-            if (advertisement.Moderation != null && advertisement.Moderation.Status != ModerationStatus.OnApproval
-                && advertisement.Moderation.Status != ModerationStatus.NominallyApproved)
+            if (sourceDescriptor.Moderation != null && sourceDescriptor.Moderation.Status != ModerationStatus.OnApproval
+                && sourceDescriptor.Moderation.Status != ModerationStatus.NominallyApproved)
             {
                 if (string.IsNullOrEmpty(versionId))
                 {
                     _logger.LogWarning("VersionId for object {id} is unknown, need to get latest version", objectId);
-                    versionId = await SourceRestClient.GetAdvertisementVersionAsync(advertisement.Id);
+                    versionId = (await DestRestClient.GetAdvertisementAsync(advertisement.Id)).VersionId;
                 }
 
-                await DestRestClient.UpdateAdvertisementModerationStatusAsync(objectId, versionId, advertisement.Moderation);
+                await DestRestClient.UpdateAdvertisementModerationStatusAsync(objectId, versionId, sourceDescriptor.Moderation);
             }
 
-            switch (advertisement.Moderation?.Status)
+            switch (sourceDescriptor.Moderation?.Status)
             {
                 case null:
                     break;
@@ -243,7 +244,7 @@ namespace CloningTool.CloneStrategies
                     Interlocked.Increment(ref _nominallyApprovedCount);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(advertisement.Moderation), advertisement.Moderation.Status, "Unsupported moderation status");
+                    throw new ArgumentOutOfRangeException(nameof(sourceDescriptor.Moderation), sourceDescriptor.Moderation.Status, "Unsupported moderation status");
             }
         }
 

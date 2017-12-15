@@ -10,8 +10,6 @@ namespace CloningTool.Json
 
         public string Name { get; set; }
 
-        public string VersionId { get; set; }
-
         public Language Language { get; set; }
 
         public bool IsWhiteListed { get; set; }
@@ -21,8 +19,6 @@ namespace CloningTool.Json
         public FirmDescriptor Firm { get; set; }
 
         public AdvertisementTemplate Template { get; set; }
-
-        public ModerationResult Moderation { get; set; }
 
         public override string ToString() => $"Id = {Id.ToString()}, Name = {Name}";
 

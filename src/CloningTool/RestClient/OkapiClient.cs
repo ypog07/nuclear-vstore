@@ -157,57 +157,6 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<string> GetAdvertisementVersionAsync(long id)
-        {
-            var amId = id.ToString();
-            var methodUri = new Uri(_searchUri, "am?id=" + amId);
-            var server = string.Empty;
-            var requestId = string.Empty;
-            var stringResponse = string.Empty;
-            try
-            {
-                using (var response = await _authorizedHttpClient.GetAsync(methodUri))
-                {
-                    (stringResponse, server, requestId) = await HandleResponse(response);
-                    response.EnsureSuccessStatusCode();
-                    var res = JsonConvert.DeserializeObject<IReadOnlyList<ApiListAdvertisement>>(stringResponse, ApiSerializerSettings.Default);
-                    if (res == null)
-                    {
-                        throw new SerializationException("Cannot deserialize response for advertisement " + amId + ": " + stringResponse);
-                    }
-
-                    if (res.Count < 1)
-                    {
-                        _logger.LogDebug("Advertisement {id} not found", amId);
-                        return null;
-                    }
-
-                    if (res.Count > 1)
-                    {
-                        throw new NotSupportedException("Unsupported count of objects in response for advertisement " + amId + ": " + res.Count.ToString());
-                    }
-
-                    return res.First().VersionId;
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError(new EventId(),
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting object {id} with response: {response}",
-                                 requestId,
-                                 server,
-                                 amId,
-                                 stringResponse);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(new EventId(), ex, "Getting object {id} error", amId);
-                throw;
-            }
-        }
-
         public async Task<ApiObjectDescriptor> UpdateAdvertisementAsync(ApiObjectDescriptor advertisement)
         {
             var server = string.Empty;
