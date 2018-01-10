@@ -15,7 +15,7 @@ before_script:
 # ================= Test & Build =================
 
 build:app:
-  image: $REGISTRY/microsoft/aspnetcore-build:2.0.4-2.1.3-jessie
+  image: $REGISTRY/microsoft/aspnetcore-build:2.0.5-2.1.4-jessie
   stage: build:app
   when: always
   script:
@@ -32,7 +32,7 @@ build:app:
       - publish/vstore-worker/
 
 build:cloning-tool:
-  image: $REGISTRY/microsoft/dotnet:2.0.4-sdk-2.1.3-stretch
+  image: $REGISTRY/microsoft/dotnet:2.0.5-sdk-2.1.4-stretch
   stage: build:app
   when: manual
   script:
