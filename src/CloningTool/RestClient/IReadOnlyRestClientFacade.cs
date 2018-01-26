@@ -14,6 +14,7 @@ namespace CloningTool.RestClient
         Task<TemplateDescriptor> GetTemplateAsync(string templateId);
         Task<IReadOnlyCollection<ApiListTemplate>> GetTemplatesAsync();
         Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByTemplateAsync(long templateId, int? fetchSize);
+        Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByIdsAsync(IEnumerable<long> ids);
         Task<ApiObjectDescriptor> GetAdvertisementAsync(long advertisementId);
         Task<byte[]> DownloadFileAsync(long advertisementId, Uri downloadUrl);
         Task EnsureApiAvailableAsync(int initialPingInterval, int initialPingTries);

@@ -314,6 +314,64 @@ namespace CloningTool.RestClient
             }
         }
 
+        public async Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByIdsAsync(IEnumerable<long> ids)
+        {
+            var server = string.Empty;
+            var requestId = string.Empty;
+            var stringResponse = string.Empty;
+            var allDescriptors = new List<ApiListAdvertisement>();
+            var idsList = string.Join(",", ids);
+            try
+            {
+                for (var pageNum = 1; ; ++pageNum)
+                {
+                    var methodUri = new Uri(_searchUri, $"am?id={idsList}&count={ApiFetchMaxSize}&page={pageNum}&sort=createdAt:desc");
+                    using (var response = await _authorizedHttpClient.GetAsync(methodUri))
+                    {
+                        (stringResponse, server, requestId) = await HandleResponse(response);
+                        response.EnsureSuccessStatusCode();
+                        var descriptors = JsonConvert.DeserializeObject<IReadOnlyCollection<ApiListAdvertisement>>(stringResponse, ApiSerializerSettings.Default);
+                        if (descriptors == null)
+                        {
+                            throw new SerializationException("Cannot deserialize advertisements: " + stringResponse);
+                        }
+
+                        if (descriptors.Count < 1 && pageNum == 1)
+                        {
+                            _logger.LogWarning("There are no advertisements with such ids");
+                            return Array.Empty<ApiListAdvertisement>();
+                        }
+
+                        allDescriptors.AddRange(descriptors);
+
+                        if (response.Headers.TryGetValues(PaginationTotalCountHeaderName, out var values) &&
+                            int.TryParse(values.FirstOrDefault(), out var count) &&
+                            count == allDescriptors.Count)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                return allDescriptors;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(new EventId(),
+                                 ex,
+                                 "Request {requestId} to server {server} error while getting advertisements with response: {response}",
+                                 requestId,
+                                 server,
+                                 stringResponse);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(new EventId(), ex, "Get advertisements error");
+                throw;
+            }
+        }
+
         public async Task SelectAdvertisementToWhitelistAsync(string advertisementId)
         {
             var methodUri = new Uri(_amUri, $"{advertisementId}/whiteList");
