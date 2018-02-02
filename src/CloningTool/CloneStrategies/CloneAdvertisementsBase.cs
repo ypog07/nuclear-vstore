@@ -138,7 +138,7 @@ namespace CloningTool.CloneStrategies
         private async Task<IList<long>> LoadAdvertisementIdsFromFile(string fileName)
         {
             var ids = new List<long>();
-            using (var file = File.Open(fileName, FileMode.Open, FileAccess.Read))
+            using (var file = File.OpenRead(fileName))
             {
                 using (var stream = new StreamReader(file))
                 {
