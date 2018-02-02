@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -82,7 +83,7 @@ namespace CloningTool.CloneStrategies
             }
             else
             {
-                var ids = await LoadAdvertisementIdsFromFile(_options.AdvertisementIdsFilename);
+                var ids = LoadAdvertisementIdsFromFile(_options.AdvertisementIdsFilename);
                 advertisements = new List<ApiListAdvertisement>(ids.Count);
                 for (var i = 0; i <= ids.Count / MaxIdsCountToFetch; ++i)
                 {
@@ -135,31 +136,24 @@ namespace CloningTool.CloneStrategies
             return true;
         }
 
-        private async Task<IList<long>> LoadAdvertisementIdsFromFile(string fileName)
+        private IList<long> LoadAdvertisementIdsFromFile(string fileName)
         {
+            var lineNumber = 0L;
             var ids = new List<long>();
-            using (var file = File.OpenRead(fileName))
+            foreach (var line in File.ReadLines(fileName, Encoding.UTF8))
             {
-                using (var stream = new StreamReader(file))
+                ++lineNumber;
+                if (string.IsNullOrWhiteSpace(line))
                 {
-                    var lineNumber = 0L;
-                    while (!stream.EndOfStream)
-                    {
-                        ++lineNumber;
-                        var line = await stream.ReadLineAsync();
-                        if (string.IsNullOrWhiteSpace(line))
-                        {
-                            continue;
-                        }
-
-                        if (!long.TryParse(line, out var id))
-                        {
-                            throw new InvalidCastException("Cannot parse id from '" + line + "' on line " + lineNumber.ToString());
-                        }
-
-                        ids.Add(id);
-                    }
+                    continue;
                 }
+
+                if (!long.TryParse(line, out var id))
+                {
+                    throw new InvalidCastException("Cannot parse id from '" + line + "' on line " + lineNumber.ToString());
+                }
+
+                ids.Add(id);
             }
 
             _logger.LogInformation("Total {count} advertisement identifiers has been fetched from file {filename}", ids.Count, fileName);
