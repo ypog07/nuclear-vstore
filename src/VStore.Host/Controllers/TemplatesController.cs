@@ -167,6 +167,7 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> CreateV10(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -183,6 +184,7 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Create(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -198,9 +200,9 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> ModifyV10(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -217,9 +219,9 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Modify(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -265,7 +267,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous creation of template with the same id");
+                return Locked("Simultaneous creation of template with the same id");
             }
             catch (TemplateValidationException ex)
             {
@@ -321,7 +323,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous modification of template");
+                return Locked("Simultaneous modification of template");
             }
             catch (ConcurrencyException)
             {

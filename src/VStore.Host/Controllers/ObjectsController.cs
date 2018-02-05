@@ -184,6 +184,7 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(404)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Create(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -226,7 +227,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous creation of object with the same id");
+                return Locked("Simultaneous creation of object with the same id");
             }
             catch (InvalidOperationException ex)
             {
@@ -247,9 +248,9 @@ namespace NuClear.VStore.Host.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Modify(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -297,7 +298,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous modification of object");
+                return Locked("Simultaneous modification of object");
             }
             catch (ConcurrencyException)
             {

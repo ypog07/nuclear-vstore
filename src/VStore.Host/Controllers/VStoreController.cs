@@ -24,6 +24,9 @@ namespace NuClear.VStore.Host.Controllers
         public ConflictResult Conflict(string message) => new ConflictResult(message) { ContentType = ContentType.PlainText };
 
         [NonAction]
+        public LockedResult Locked(string message) => new LockedResult(message) { ContentType = ContentType.PlainText };
+
+        [NonAction]
         public PreconditionFailedResult PreconditionFailed() => new PreconditionFailedResult();
 
         [NonAction]
