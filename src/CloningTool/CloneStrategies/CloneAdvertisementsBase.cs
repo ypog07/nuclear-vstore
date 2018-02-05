@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +20,7 @@ namespace CloningTool.CloneStrategies
 {
     public abstract class CloneAdvertisementsBase : ICloneStrategy
     {
+        private const int MaxIdsCountToFetch = 30;
         private readonly CloningToolOptions _options;
         private readonly ILogger<CloneAdvertisementsBase> _logger;
         private readonly bool _isTruncatedCloning;
@@ -52,26 +55,42 @@ namespace CloningTool.CloneStrategies
         {
             ResetCounters();
             await EnsureTemplatesAreLoaded();
-            var advertisements = new List<ApiListAdvertisement>(_destTemplates.Count * _options.TruncatedCloneSize);
-            foreach (var templateId in _destTemplates.Keys)
+            List<ApiListAdvertisement> advertisements;
+            if (string.IsNullOrEmpty(_options.AdvertisementIdsFilename))
             {
-                if (_options.AdvertisementsTemplateId.HasValue && templateId != _options.AdvertisementsTemplateId)
+                advertisements = new List<ApiListAdvertisement>(_destTemplates.Count * _options.TruncatedCloneSize);
+                foreach (var templateId in _destTemplates.Keys)
                 {
-                    _logger.LogInformation("Skip fetching ads for template {templateId}", templateId);
-                    continue;
-                }
+                    if (_options.AdvertisementsTemplateId.HasValue && templateId != _options.AdvertisementsTemplateId)
+                    {
+                        _logger.LogInformation("Skip fetching ads for template {templateId}", templateId);
+                        continue;
+                    }
 
-                if (_sourceTemplates.ContainsKey(templateId))
-                {
-                    var templateAds = await SourceRestClient.GetAdvertisementsByTemplateAsync(templateId, _isTruncatedCloning ? _options.TruncatedCloneSize : (int?)null);
-                    _logger.LogInformation("Found {count} ads for template {templateId}", templateAds.Count, templateId);
-                    advertisements.AddRange(_options.AdvertisementsCreatedAtBeginDate.HasValue
-                                            ? templateAds.Where(a => a.CreatedAt >= _options.AdvertisementsCreatedAtBeginDate.Value)
-                                            : templateAds);
+                    if (_sourceTemplates.ContainsKey(templateId))
+                    {
+                        var templateAds = await SourceRestClient.GetAdvertisementsByTemplateAsync(templateId, _isTruncatedCloning ? _options.TruncatedCloneSize : (int?)null);
+                        _logger.LogInformation("Found {count} ads for template {templateId}", templateAds.Count, templateId);
+                        advertisements.AddRange(_options.AdvertisementsCreatedAtBeginDate.HasValue
+                                                ? templateAds.Where(a => a.CreatedAt >= _options.AdvertisementsCreatedAtBeginDate.Value)
+                                                : templateAds);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Template {template} does not exist in source", _destTemplates[templateId]);
+                    }
                 }
-                else
+            }
+            else
+            {
+                var ids = LoadAdvertisementIdsFromFile(_options.AdvertisementIdsFilename);
+                advertisements = new List<ApiListAdvertisement>(ids.Count);
+                for (var i = 0; i <= ids.Count / MaxIdsCountToFetch; ++i)
                 {
-                    _logger.LogWarning("Template {template} does not exist in source", _destTemplates[templateId]);
+                    var portionIds = ids.Skip(MaxIdsCountToFetch * i).Take(MaxIdsCountToFetch);
+                    var portionAds = await SourceRestClient.GetAdvertisementsByIdsAsync(portionIds);
+                    advertisements.AddRange(portionAds);
+                    _logger.LogInformation("Found {count} advertisements for {num} batch", portionAds.Count, i + 1);
                 }
             }
 
@@ -115,6 +134,30 @@ namespace CloningTool.CloneStrategies
             }
 
             return true;
+        }
+
+        private IList<long> LoadAdvertisementIdsFromFile(string fileName)
+        {
+            var lineNumber = 0L;
+            var ids = new List<long>();
+            foreach (var line in File.ReadLines(fileName, Encoding.UTF8))
+            {
+                ++lineNumber;
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                if (!long.TryParse(line, out var id))
+                {
+                    throw new InvalidCastException("Cannot parse id from '" + line + "' on line " + lineNumber.ToString());
+                }
+
+                ids.Add(id);
+            }
+
+            _logger.LogInformation("Total {count} advertisement identifiers has been fetched from file {filename}", ids.Count, fileName);
+            return ids;
         }
 
         private async Task EnsureTemplatesAreLoaded()
