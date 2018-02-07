@@ -103,7 +103,7 @@ build:cloning-tool-image:
     - build:cloning-tool
 
 build:logo-migrator-image:
-  stage: build:image
+  stage: dockerize
   when: manual
   script:
     - IMAGE=ams/logo-migrator TAG=$CI_TAG DOCKER_FILE=publish/logo-migrator/Dockerfile DOCKER_BUILD_CONTEXT=publish/logo-migrator make docker-build
