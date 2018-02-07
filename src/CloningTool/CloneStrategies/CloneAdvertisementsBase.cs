@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +15,9 @@ using Microsoft.Extensions.Logging;
 
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
+using NuClear.VStore.Http;
 using NuClear.VStore.Objects;
+using NuClear.VStore.Sessions;
 
 namespace CloningTool.CloneStrategies
 {
@@ -293,26 +296,67 @@ namespace CloningTool.CloneStrategies
 
         private async Task SendBinaryContent(ApiObjectDescriptor sourceDescriptor, ApiObjectDescriptor newAdvertisement)
         {
-            foreach (var element in sourceDescriptor.Elements)
+            var binaryElements = sourceDescriptor.Elements.Where(e => IsBinaryAdvertisementElementType(e.Type));
+            foreach (var element in binaryElements)
             {
-                if (IsBinaryAdvertisementElementType(element.Type))
+                var value = element.Value as IBinaryElementValue
+                                         ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} binary element {element.TemplateCode} value");
+                if (string.IsNullOrEmpty(value.Raw))
                 {
-                    var value = element.Value as IBinaryElementValue
-                                ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} binary element {element.TemplateCode} value");
-                    if (string.IsNullOrEmpty(value.Raw))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    var fileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
-                    var matchedElement = newAdvertisement.Elements.First(e => e.TemplateCode == element.TemplateCode);
-                    EnsureUploadUrlIsValid(sourceDescriptor.Id, matchedElement);
-                    var res = await DestRestClient.UploadFileAsync(sourceDescriptor.Id,
-                                                                   new Uri(matchedElement.UploadUrl),
-                                                                   value.Filename,
-                                                                   fileData);
-                    Interlocked.Increment(ref _uploadedBinariesCount);
-                    element.Value = res;
+                var fileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
+                var matchedElement = newAdvertisement.Elements.First(e => e.TemplateCode == element.TemplateCode);
+                EnsureUploadUrlIsValid(sourceDescriptor.Id, matchedElement);
+                var uploadResponse = await DestRestClient.UploadFileAsync(
+                                         sourceDescriptor.Id,
+                                         new Uri(matchedElement.UploadUrl),
+                                         value.Filename,
+                                         fileData);
+                Interlocked.Increment(ref _uploadedBinariesCount);
+
+                if (element.Type == ElementDescriptorType.CompositeBitmapImage)
+                {
+                    var compositeBitmapImageElementValue = element.Value as ICompositeBitmapImageElementValue
+                                    ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} composite image element {element.TemplateCode} value");
+
+                    var sizeSpecificImagesUploadTasks = compositeBitmapImageElementValue
+                            .SizeSpecificImages
+                            .Select(async image =>
+                                        {
+                                            var imageFileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, image.DownloadUri);
+                                            var headers = new[]
+                                                {
+                                                    new NameValueHeaderValue(HeaderNames.AmsFileType, FileType.SizeSpecificBitmapImage.ToString()),
+                                                    new NameValueHeaderValue(HeaderNames.AmsImageSize, image.Size.ToString())
+                                                };
+
+                                            var imageUploadResponse = await DestRestClient.UploadFileAsync(
+                                                                                sourceDescriptor.Id,
+                                                                                new Uri(matchedElement.UploadUrl),
+                                                                                image.Filename,
+                                                                                imageFileData,
+                                                                                headers);
+                                            Interlocked.Increment(ref _uploadedBinariesCount);
+                                            return new SizeSpecificImage
+                                                {
+                                                    Size = image.Size,
+                                                    Raw = imageUploadResponse.Raw
+                                                };
+                                        })
+                            .ToList();
+
+                    element.Value = new CompositeBitmapImageElementValue
+                        {
+                            Raw = uploadResponse.Raw,
+                            CropArea = compositeBitmapImageElementValue.CropArea,
+                            SizeSpecificImages = await Task.WhenAll(sizeSpecificImagesUploadTasks)
+                        };
+                }
+                else
+                {
+                    element.Value = uploadResponse;
                 }
             }
         }
@@ -340,10 +384,12 @@ namespace CloningTool.CloneStrategies
                 case ElementDescriptorType.Link:
                 case ElementDescriptorType.Phone:
                 case ElementDescriptorType.VideoLink:
+                case ElementDescriptorType.Color:
                     return false;
                 case ElementDescriptorType.BitmapImage:
                 case ElementDescriptorType.VectorImage:
                 case ElementDescriptorType.Article:
+                case ElementDescriptorType.CompositeBitmapImage:
                     return true;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(elementDescriptorType), elementDescriptorType, "Unknown advertisement's element type");

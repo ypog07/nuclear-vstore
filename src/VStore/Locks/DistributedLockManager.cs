@@ -21,7 +21,7 @@ namespace NuClear.VStore.Locks
             _expiration = lockOptions.Expiration;
         }
 
-        public async Task EnsureLockNotExists(long rootObjectKey)
+        public async Task EnsureLockNotExistsAsync(long rootObjectKey)
         {
             using (var redLock = await _lockFactory.CreateLockAsync(rootObjectKey.ToString(), CheckLockExpiration))
             {
@@ -32,7 +32,7 @@ namespace NuClear.VStore.Locks
             }
         }
 
-        public async Task<IRedLock> CreateLockAsync(long rootObjectKey)
+        public async Task<IRedLock> AcquireLockAsync(long rootObjectKey)
         {
             var redLock = await _lockFactory.CreateLockAsync(rootObjectKey.ToString(), _expiration);
             if (!redLock.IsAcquired)

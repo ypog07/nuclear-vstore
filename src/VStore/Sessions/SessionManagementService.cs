@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,6 +23,7 @@ using NuClear.VStore.Prometheus;
 using NuClear.VStore.S3;
 using NuClear.VStore.Sessions.ContentValidation;
 using NuClear.VStore.Sessions.ContentValidation.Errors;
+using NuClear.VStore.Sessions.Upload;
 using NuClear.VStore.Templates;
 
 using Prometheus.Client;
@@ -33,16 +32,7 @@ namespace NuClear.VStore.Sessions
 {
     public sealed class SessionManagementService
     {
-        private static readonly IReadOnlyDictionary<FileFormat, string> ContentTypesMap =
-            new Dictionary<FileFormat, string>
-                {
-                    { FileFormat.Chm, "application/vnd.ms-htmlhelp" },
-                    { FileFormat.Svg, "image/svg+xml" },
-                    { FileFormat.Pdf, "application/pdf" }
-                };
-
         private readonly TimeSpan _sessionExpiration;
-        private readonly Uri _fileStorageEndpointUri;
         private readonly string _filesBucketName;
         private readonly string _sessionsTopicName;
         private readonly ICephS3Client _cephS3Client;
@@ -55,7 +45,7 @@ namespace NuClear.VStore.Sessions
 
         public SessionManagementService(
             CephOptions cephOptions,
-            VStoreOptions vstoreOptions,
+            SessionOptions sessionOptions,
             KafkaOptions kafkaOptions,
             ICephS3Client cephS3Client,
             SessionStorageReader sessionStorageReader,
@@ -64,8 +54,7 @@ namespace NuClear.VStore.Sessions
             MetricsProvider metricsProvider,
             IMemoryCache memoryCache)
         {
-            _sessionExpiration = vstoreOptions.SessionExpiration;
-            _fileStorageEndpointUri = vstoreOptions.FileStorageEndpoint;
+            _sessionExpiration = sessionOptions.SessionExpiration;
             _filesBucketName = cephOptions.FilesBucketName;
             _sessionsTopicName = kafkaOptions.SessionEventsTopic;
             _cephS3Client = cephS3Client;
@@ -129,12 +118,10 @@ namespace NuClear.VStore.Sessions
 
         public async Task<MultipartUploadSession> InitiateMultipartUpload(
             Guid sessionId,
-            string fileName,
-            string contentType,
-            long fileLength,
-            int templateCode)
+            int templateCode,
+            IUploadedFileMetadata uploadedFileMetadata)
         {
-            if (string.IsNullOrEmpty(fileName))
+            if (string.IsNullOrEmpty(uploadedFileMetadata.FileName))
             {
                 throw new MissingFilenameException($"Filename has not been provided for the item '{templateCode}'");
             }
@@ -143,27 +130,34 @@ namespace NuClear.VStore.Sessions
             if (sessionDescriptor.BinaryElementTemplateCodes.All(x => x != templateCode))
             {
                 throw new InvalidTemplateException(
-                          $"Binary content is not expected for the item '{templateCode}' within template '{sessionDescriptor.TemplateId}' " +
-                          $"with version Id '{sessionDescriptor.TemplateVersionId}'.");
+                    $"Binary content is not expected for the item '{templateCode}' within template '{sessionDescriptor.TemplateId}' " +
+                    $"with version Id '{sessionDescriptor.TemplateVersionId}'.");
             }
 
             var elementDescriptor = await GetElementDescriptor(sessionDescriptor.TemplateId, sessionDescriptor.TemplateVersionId, templateCode);
-            EnsureFileMetadataIsValid(elementDescriptor, fileLength, sessionDescriptor.Language, fileName);
+            EnsureFileMetadataIsValid(elementDescriptor, sessionDescriptor.Language, uploadedFileMetadata);
 
             var fileKey = Guid.NewGuid().ToString();
             var key = sessionId.AsS3ObjectKey(fileKey);
             var request = new InitiateMultipartUploadRequest
-                              {
-                                  BucketName = _filesBucketName,
-                                  Key = key,
-                                  ContentType = contentType
-                              };
+                {
+                    BucketName = _filesBucketName,
+                    Key = key,
+                    ContentType = uploadedFileMetadata.ContentType
+                };
             var metadataWrapper = MetadataCollectionWrapper.For(request.Metadata);
-            metadataWrapper.Write(MetadataElement.Filename, fileName);
+            metadataWrapper.Write(MetadataElement.Filename, uploadedFileMetadata.FileName);
 
             var uploadResponse = await _cephS3Client.InitiateMultipartUploadAsync(request);
 
-            return new MultipartUploadSession(sessionId, sessionDescriptor, expiresAt, elementDescriptor, fileKey, fileName, uploadResponse.UploadId);
+            return new MultipartUploadSession(
+                sessionId,
+                sessionDescriptor,
+                expiresAt,
+                elementDescriptor,
+                uploadedFileMetadata,
+                fileKey,
+                uploadResponse.UploadId);
         }
 
         public async Task UploadFilePart(MultipartUploadSession uploadSession, Stream inputStream, int templateCode)
@@ -175,14 +169,19 @@ namespace NuClear.VStore.Sessions
 
             if (uploadSession.NextPartNumber == 1)
             {
+                var sessionDescriptor = uploadSession.SessionDescriptor;
+                var elementDescriptor = uploadSession.ElementDescriptor;
                 EnsureFileHeaderIsValid(
                     templateCode,
-                    uploadSession.FileName,
                     uploadSession.ElementDescriptor.Type,
-                    inputStream);
+                    elementDescriptor.Constraints.For(sessionDescriptor.Language),
+                    inputStream,
+                    uploadSession.UploadedFileMetadata);
             }
 
             var key = uploadSession.SessionId.AsS3ObjectKey(uploadSession.FileKey);
+            inputStream.Position = 0;
+
             var response = await _cephS3Client.UploadPartAsync(
                                 new UploadPartRequest
                                     {
@@ -204,7 +203,7 @@ namespace NuClear.VStore.Sessions
             }
         }
 
-        public async Task<UploadedFileInfo> CompleteMultipartUpload(MultipartUploadSession uploadSession, int templateCode)
+        public async Task<string> CompleteMultipartUpload(MultipartUploadSession uploadSession)
         {
             var uploadKey = uploadSession.SessionId.AsS3ObjectKey(uploadSession.FileKey);
             var partETags = uploadSession.Parts.Select(x => new PartETag(x.PartNumber, x.Etag)).ToList();
@@ -227,17 +226,23 @@ namespace NuClear.VStore.Sessions
             {
                 using (var getResponse = await _cephS3Client.GetObjectAsync(_filesBucketName, uploadKey))
                 {
-                    string contentType;
+                    var memoryStream = new MemoryStream();
                     using (getResponse.ResponseStream)
+                    {
+                        getResponse.ResponseStream.CopyTo(memoryStream);
+                        memoryStream.Position = 0;
+                    }
+
+                    using (memoryStream)
                     {
                         var sessionDescriptor = uploadSession.SessionDescriptor;
                         var elementDescriptor = uploadSession.ElementDescriptor;
-                        contentType = EnsureFileContentIsValid(
+                        EnsureFileContentIsValid(
                             elementDescriptor.TemplateCode,
-                            uploadSession.FileName,
                             elementDescriptor.Type,
                             elementDescriptor.Constraints.For(sessionDescriptor.Language),
-                            getResponse.ResponseStream);
+                            memoryStream,
+                            uploadSession.UploadedFileMetadata);
                     }
 
                     var metadataWrapper = MetadataCollectionWrapper.For(getResponse.Metadata);
@@ -247,7 +252,7 @@ namespace NuClear.VStore.Sessions
                     var fileKey = Path.ChangeExtension(uploadSession.SessionId.AsS3ObjectKey(uploadResponse.ETag), fileExtension);
                     var copyRequest = new CopyObjectRequest
                         {
-                            ContentType = contentType,
+                            ContentType = uploadSession.UploadedFileMetadata.ContentType,
                             SourceBucket = _filesBucketName,
                             SourceKey = uploadKey,
                             DestinationBucket = _filesBucketName,
@@ -265,7 +270,7 @@ namespace NuClear.VStore.Sessions
 
                     _memoryCache.Set(fileKey, new BinaryMetadata(fileName, getResponse.ContentLength), uploadSession.SessionExpiresAt);
 
-                    return new UploadedFileInfo(fileKey, new Uri(_fileStorageEndpointUri, fileKey));
+                    return fileKey;
                 }
             }
             finally
@@ -274,20 +279,27 @@ namespace NuClear.VStore.Sessions
             }
         }
 
-        private static void EnsureFileMetadataIsValid(IElementDescriptor elementDescriptor, long inputStreamLength, Language language, string fileName)
+        private static void EnsureFileMetadataIsValid(IElementDescriptor elementDescriptor, Language language, IUploadedFileMetadata uploadedFileMetadata)
         {
             var constraints = (IBinaryElementConstraints)elementDescriptor.Constraints.For(language);
-            if (constraints.MaxFilenameLength < fileName.Length)
+            if (constraints.MaxFilenameLength < uploadedFileMetadata.FileName.Length)
             {
-                throw new InvalidBinaryException(elementDescriptor.TemplateCode, new FilenameTooLongError(fileName.Length));
+                throw new InvalidBinaryException(elementDescriptor.TemplateCode, new FilenameTooLongError(uploadedFileMetadata.FileName.Length));
             }
 
-            if (constraints.MaxSize < inputStreamLength)
+            if (constraints.MaxSize < uploadedFileMetadata.FileLength)
             {
-                throw new InvalidBinaryException(elementDescriptor.TemplateCode, new BinaryTooLargeError(inputStreamLength));
+                throw new InvalidBinaryException(elementDescriptor.TemplateCode, new BinaryTooLargeError(uploadedFileMetadata.FileLength));
             }
 
-            var extension = GetDotLessExtension(fileName);
+            if (constraints is CompositeBitmapImageElementConstraints compositeBitmapImageElementConstraints &&
+                uploadedFileMetadata.FileType == FileType.SizeSpecificBitmapImage &&
+                compositeBitmapImageElementConstraints.SizeSpecificImageMaxSize < uploadedFileMetadata.FileLength)
+            {
+                throw new InvalidBinaryException(elementDescriptor.TemplateCode, new SizeSpecificImageTooLargeError(uploadedFileMetadata.FileLength));
+            }
+
+            var extension = GetDotLessExtension(uploadedFileMetadata.FileName);
             if (!ValidateFileExtension(extension, constraints))
             {
                 throw new InvalidBinaryException(elementDescriptor.TemplateCode, new BinaryInvalidFormatError(extension));
@@ -296,15 +308,37 @@ namespace NuClear.VStore.Sessions
 
         private static void EnsureFileHeaderIsValid(
             int templateCode,
-            string fileName,
             ElementDescriptorType elementDescriptorType,
-            Stream inputStream)
+            IElementConstraints elementConstraints,
+            Stream inputStream,
+            IUploadedFileMetadata uploadedFileMetadata)
         {
-            var fileFormat = DetectFileFormat(fileName);
+            var fileFormat = DetectFileFormat(uploadedFileMetadata.FileName);
             switch (elementDescriptorType)
             {
                 case ElementDescriptorType.BitmapImage:
-                    BitmapImageValidator.ValidateBitmapImageHeader(templateCode, fileFormat, inputStream);
+                    BitmapImageValidator.ValidateBitmapImageHeader(templateCode, (BitmapImageElementConstraints)elementConstraints, fileFormat, inputStream);
+                    break;
+                case ElementDescriptorType.CompositeBitmapImage:
+                    if (uploadedFileMetadata.FileType == FileType.SizeSpecificBitmapImage)
+                    {
+                        var imageMetadata = (UploadedImageMetadata)uploadedFileMetadata;
+                        BitmapImageValidator.ValidateSizeSpecificBitmapImageHeader(
+                            templateCode,
+                            (CompositeBitmapImageElementConstraints)elementConstraints,
+                            fileFormat,
+                            inputStream,
+                            imageMetadata.Size);
+                    }
+                    else
+                    {
+                        BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(
+                            templateCode,
+                            (CompositeBitmapImageElementConstraints)elementConstraints,
+                            fileFormat,
+                            inputStream);
+                    }
+
                     break;
                 case ElementDescriptorType.VectorImage:
                     VectorImageValidator.ValidateVectorImageHeader(templateCode, fileFormat, inputStream);
@@ -324,26 +358,27 @@ namespace NuClear.VStore.Sessions
             }
         }
 
-        private static string EnsureFileContentIsValid(
+        private static void EnsureFileContentIsValid(
             int templateCode,
-            string fileName,
             ElementDescriptorType elementDescriptorType,
             IElementConstraints elementConstraints,
-            Stream inputStream)
+            Stream inputStream,
+            IUploadedFileMetadata uploadedFileMetadata)
         {
             switch (elementDescriptorType)
             {
                 case ElementDescriptorType.BitmapImage:
-                    return BitmapImageValidator.ValidateBitmapImage(templateCode, (BitmapImageElementConstraints)elementConstraints, inputStream);
+                    BitmapImageValidator.ValidateBitmapImage(templateCode, (BitmapImageElementConstraints)elementConstraints, inputStream);
+                    break;
                 case ElementDescriptorType.VectorImage:
-                {
-                    var fileFormat = DetectFileFormat(fileName);
+                    var fileFormat = DetectFileFormat(uploadedFileMetadata.FileName);
                     VectorImageValidator.ValidateVectorImage(templateCode, fileFormat, (VectorImageElementConstraints)elementConstraints, inputStream);
-                    return ContentTypesMap[fileFormat];
-                }
+                    break;
                 case ElementDescriptorType.Article:
                     ArticleValidator.ValidateArticle(templateCode, inputStream);
-                    return ContentTypesMap[FileFormat.Chm];
+                    break;
+                case ElementDescriptorType.CompositeBitmapImage:
+                    break;
                 case ElementDescriptorType.PlainText:
                 case ElementDescriptorType.FormattedText:
                 case ElementDescriptorType.FasComment:

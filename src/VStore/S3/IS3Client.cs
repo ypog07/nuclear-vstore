@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 using Amazon.S3.Model;
 
@@ -12,11 +13,10 @@ namespace NuClear.VStore.S3
         Task<ListVersionsResponse> ListVersionsAsync(ListVersionsRequest request);
         Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string bucketName, string key);
         Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string bucketName, string key, string versionId);
-        Task<GetObjectResponse> GetObjectAsync(string bucketName, string key);
-        Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, string versionId);
+        Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, CancellationToken cancellationToken = default);
+        Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, string versionId, CancellationToken cancellationToken = default);
         Task<PutObjectResponse> PutObjectAsync(PutObjectRequest request);
         Task<DeleteObjectResponse> DeleteObjectAsync(string bucketName, string key);
-        Task<DeleteObjectResponse> DeleteObjectAsync(string bucketName, string key, string versionId);
         Task<CopyObjectResponse> CopyObjectAsync(CopyObjectRequest request);
     }
 }

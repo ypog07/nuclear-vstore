@@ -29,12 +29,12 @@ using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
-using NuClear.VStore.Host.Json;
-using NuClear.VStore.Host.Middleware;
 using NuClear.VStore.Host.Options;
-using NuClear.VStore.Host.Routing;
-using NuClear.VStore.Host.Swashbuckle;
 using NuClear.VStore.Http;
+using NuClear.VStore.Http.Core.Json;
+using NuClear.VStore.Http.Core.Middleware;
+using NuClear.VStore.Http.Core.Routing;
+using NuClear.VStore.Http.Core.Swashbuckle;
 using NuClear.VStore.Json;
 using NuClear.VStore.Kafka;
 using NuClear.VStore.Locks;
@@ -88,7 +88,9 @@ namespace NuClear.VStore.Host
                  .AddOptions()
                  .Configure<CephOptions>(_configuration.GetSection("Ceph"))
                  .Configure<DistributedLockOptions>(_configuration.GetSection("DistributedLocks"))
-                 .Configure<VStoreOptions>(_configuration.GetSection("VStore"))
+                 .Configure<UploadFileOptions>(_configuration.GetSection("VStore"))
+                 .Configure<SessionOptions>(_configuration.GetSection("VStore"))
+                 .Configure<CdnOptions>(_configuration.GetSection("VStore"))
                  .Configure<JwtOptions>(jwtConfiguration)
                  .Configure<KafkaOptions>(_configuration.GetSection("Kafka"))
                  .Configure<RouteOptions>(options => options.ConstraintMap.Add("lang", typeof(LanguageRouteConstraint)));
@@ -173,7 +175,9 @@ namespace NuClear.VStore.Host
         {
             builder.Register(x => x.Resolve<IOptions<CephOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<DistributedLockOptions>>().Value).SingleInstance();
-            builder.Register(x => x.Resolve<IOptions<VStoreOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<UploadFileOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<SessionOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<CdnOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
@@ -204,7 +208,6 @@ namespace NuClear.VStore.Host
 
                                return RedLockFactory.Create(redLockEndPoints, loggerFactory);
                            })
-                   .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()
                    .SingleInstance();
             builder.Register(

@@ -6,6 +6,8 @@
         public const string AmsAuthorLogin = "x-ams-author-login";
         public const string AmsAuthorName = "x-ams-author-name";
         public const string AmsContinuationToken = "x-ams-continuation-token";
+        public const string AmsFileType = "x-ams-file-type";
+        public const string AmsImageSize = "x-ams-image-size";
         public const string RequestId = "x-request-id";
         public const string Server = "x-server";
     }

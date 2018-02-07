@@ -18,10 +18,12 @@
     <Content Include="..\..\src\VStore.Host\appsettings.development.json" Link="appsettings.development.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="images\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\VStore.Host\VStore.Host.csproj" />
-    <ProjectReference Include="..\..\src\VStore\VStore.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.0" />
@@ -34,8 +36,5 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties" />
   </ItemGroup>
 </Project>

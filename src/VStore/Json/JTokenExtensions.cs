@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Linq;
+
+using Newtonsoft.Json.Linq;
 
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
@@ -28,6 +30,12 @@ namespace NuClear.VStore.Json
                     return valueToken.ToObject<PhoneElementValue>();
                 case ElementDescriptorType.Color:
                     return valueToken.ToObject<ColorElementValue>();
+                case ElementDescriptorType.CompositeBitmapImage:
+                {
+                    var value = valueToken.ToObject<CompositeBitmapImageElementValue>();
+                    value.SizeSpecificImages = value.SizeSpecificImages ?? Enumerable.Empty<SizeSpecificImage>();
+                    return value;
+                }
                 default:
                     return null;
             }

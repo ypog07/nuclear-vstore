@@ -31,6 +31,24 @@
             }
         }
 
+        public static bool TryParse(string size, out ImageSize imageSize)
+        {
+            imageSize = Empty;
+            if (string.IsNullOrEmpty(size))
+            {
+                return false;
+            }
+
+            var sizeTokens = size.Split('x');
+            if (sizeTokens.Length != 2 || !int.TryParse(sizeTokens[0], out var width) || !int.TryParse(sizeTokens[1], out var height))
+            {
+                return false;
+            }
+
+            imageSize = new ImageSize { Width = width, Height = height };
+            return true;
+        }
+
         public override string ToString()
         {
             return $"{Width}x{Height}";

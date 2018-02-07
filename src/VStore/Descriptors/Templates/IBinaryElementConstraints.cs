@@ -6,7 +6,7 @@ namespace NuClear.VStore.Descriptors.Templates
     {
         int? MaxSize { get; set; }
         int? MaxFilenameLength { get; set; }
-        IEnumerable<FileFormat> SupportedFileFormats { get; set; }
+        IReadOnlyCollection<FileFormat> SupportedFileFormats { get; set; }
         bool BinaryExists { get; }
     }
 }

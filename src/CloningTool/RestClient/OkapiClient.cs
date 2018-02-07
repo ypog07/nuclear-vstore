@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 
-using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Http;
 using NuClear.VStore.Json;
@@ -765,7 +764,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<IObjectElementValue> UploadFileAsync(long advertisementId, Uri uploadUrl, string fileName, byte[] fileData)
+        public async Task<ApiObjectElementRawValue> UploadFileAsync(long advertisementId, Uri uploadUrl, string fileName, byte[] fileData, params NameValueHeaderValue[] headers)
         {
             var url = uploadUrl;
             var stringResponse = string.Empty;
@@ -783,12 +782,24 @@ namespace CloningTool.RestClient
                         using (var streamContent = new StreamContent(memoryStream))
                         {
                             content.Add(streamContent, fileName, fileName);
-                            using (var response = await _authorizedHttpClient.PostAsync(url, content))
+                            using (var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content })
                             {
-                                stringResponse = (await HandleResponse(response)).ResponseContent;
-                                response.EnsureSuccessStatusCode();
-                                _logger.LogInformation("File {fileName} within advertisement {objectId} uploaded to {url}", fileName, advertisementId, url);
-                                return JsonConvert.DeserializeObject<ApiObjectElementRawValue>(stringResponse, ApiSerializerSettings.Default);
+                                foreach (var header in headers)
+                                {
+                                    request.Headers.Add(header.Name, header.Value);
+                                }
+
+                                using (var response = await _authorizedHttpClient.SendAsync(request))
+                                {
+                                    stringResponse = (await HandleResponse(response)).ResponseContent;
+                                    response.EnsureSuccessStatusCode();
+                                    _logger.LogInformation("File {fileName} within advertisement {objectId} uploaded to {url}. Headers {@params}",
+                                                           fileName,
+                                                           advertisementId,
+                                                           url,
+                                                           headers);
+                                    return JsonConvert.DeserializeObject<ApiObjectElementRawValue>(stringResponse, ApiSerializerSettings.Default);
+                                }
                             }
                         }
                     }

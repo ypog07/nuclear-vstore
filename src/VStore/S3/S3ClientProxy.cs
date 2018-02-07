@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 using Amazon.S3.Model;
 
@@ -31,20 +32,17 @@ namespace NuClear.VStore.S3
         public async Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string bucketName, string key, string versionId)
             => await _s3Client.GetObjectMetadataAsync(bucketName, key, versionId);
 
-        public async Task<GetObjectResponse> GetObjectAsync(string bucketName, string key)
-            => await _s3Client.GetObjectAsync(bucketName, key);
+        public async Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, CancellationToken cancellationToken = default)
+            => await _s3Client.GetObjectAsync(bucketName, key, cancellationToken);
 
-        public async Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, string versionId)
-            => await _s3Client.GetObjectAsync(bucketName, key, versionId);
+        public async Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, string versionId, CancellationToken cancellationToken)
+            => await _s3Client.GetObjectAsync(bucketName, key, versionId, cancellationToken);
 
         public async Task<PutObjectResponse> PutObjectAsync(PutObjectRequest request)
             => await _s3Client.PutObjectAsync(request);
 
         public async Task<DeleteObjectResponse> DeleteObjectAsync(string bucketName, string key)
             => await _s3Client.DeleteObjectAsync(bucketName, key);
-
-        public async Task<DeleteObjectResponse> DeleteObjectAsync(string bucketName, string key, string versionId)
-            => await _s3Client.DeleteObjectAsync(bucketName, key, versionId);
 
         public async Task<CopyObjectResponse> CopyObjectAsync(CopyObjectRequest request)
             => await _s3Client.CopyObjectAsync(request);

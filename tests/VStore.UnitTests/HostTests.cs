@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Amazon.Runtime;
@@ -91,7 +92,7 @@ namespace VStore.UnitTests
             using (var response = await _client.GetAsync("/api/1.0/objects/123/some_version_id"))
             {
                 Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-                _mockS3Client.Verify(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(1));
+                _mockS3Client.Verify(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
             }
 
             _mockS3Client.ResetCalls();
@@ -110,9 +111,9 @@ namespace VStore.UnitTests
 
         private void SetupMockS3()
         {
-            _mockS3Client.Setup(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>()))
+            _mockS3Client.Setup(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                    .Throws(new AmazonS3Exception("Mock error", ErrorType.Unknown, "NoSuchKey", String.Empty, HttpStatusCode.NotFound));
-            _mockS3Client.Setup(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            _mockS3Client.Setup(s3 => s3.GetObjectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                    .Throws(new AmazonS3Exception("Mock error", ErrorType.Unknown, "NoSuchKey", String.Empty, HttpStatusCode.NotFound));
             _mockS3Client.Setup(s3 => s3.ListVersionsAsync(It.IsAny<string>(), It.IsAny<string>()))
                    .Returns(() => Task.FromResult(new ListVersionsResponse()));

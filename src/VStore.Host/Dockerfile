@@ -1,13 +1,8 @@
-FROM docker-hub.2gis.ru/microsoft/dotnet:2.0.5-runtime-deps-jessie
+FROM docker-hub.2gis.ru/microsoft/dotnet:2.0.5-runtime-deps
 WORKDIR /app
 EXPOSE 5000
 ENV ASPNETCORE_URLS http://*:5000
 
 ENTRYPOINT ["./VStore.Host"]
-
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
-ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
 COPY . .

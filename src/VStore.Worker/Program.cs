@@ -158,7 +158,7 @@ namespace NuClear.VStore.Worker
                 .AddOptions()
                 .Configure<CephOptions>(configuration.GetSection("Ceph"))
                 .Configure<DistributedLockOptions>(configuration.GetSection("DistributedLocks"))
-                .Configure<VStoreOptions>(configuration.GetSection("VStore"))
+                .Configure<CdnOptions>(configuration.GetSection("Cdn"))
                 .Configure<KafkaOptions>(configuration.GetSection("Kafka"))
                 .AddLogging(x => x.AddSerilog(CreateLogger(configuration), true));
 
@@ -167,7 +167,7 @@ namespace NuClear.VStore.Worker
 
             builder.Register(x => x.Resolve<IOptions<CephOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<DistributedLockOptions>>().Value).SingleInstance();
-            builder.Register(x => x.Resolve<IOptions<VStoreOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<CdnOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
             builder.RegisterType<MemoryCache>().As<IMemoryCache>().SingleInstance();

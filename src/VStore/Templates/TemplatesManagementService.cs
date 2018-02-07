@@ -33,6 +33,9 @@ namespace NuClear.VStore.Templates
         private static readonly IReadOnlyCollection<FileFormat> ArticleFileFormats =
             new[] { FileFormat.Chm };
 
+        private static readonly IReadOnlyCollection<FileFormat> CompositeBitmapImageFileFormats =
+            new[] { FileFormat.Png, FileFormat.Gif, FileFormat.Jpg, FileFormat.Jpeg };
+
         private readonly IS3Client _s3Client;
         private readonly TemplatesStorageReader _templatesStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
@@ -40,7 +43,7 @@ namespace NuClear.VStore.Templates
         private readonly long _maxBinarySize;
 
         public TemplatesManagementService(
-            VStoreOptions vstoreOptions,
+            UploadFileOptions uploadFileOptions,
             CephOptions cephOptions,
             IS3Client s3Client,
             TemplatesStorageReader templatesStorageReader,
@@ -50,7 +53,7 @@ namespace NuClear.VStore.Templates
             _templatesStorageReader = templatesStorageReader;
             _distributedLockManager = distributedLockManager;
             _bucketName = cephOptions.TemplatesBucketName;
-            _maxBinarySize = vstoreOptions.MaxBinarySize;
+            _maxBinarySize = uploadFileOptions.MaxBinarySize;
         }
 
         public IReadOnlyCollection<IElementDescriptor> GetAvailableElementDescriptors() =>
@@ -65,7 +68,8 @@ namespace NuClear.VStore.Templates
                 new ElementDescriptor(ElementDescriptorType.Link, 7, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new LinkElementConstraints()) })),
                 new ElementDescriptor(ElementDescriptorType.Phone, 8, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new PhoneElementConstraints()) })),
                 new ElementDescriptor(ElementDescriptorType.VideoLink, 9, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new LinkElementConstraints()) })),
-                new ElementDescriptor(ElementDescriptorType.Color, 10, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new ColorElementConstraints()) }))
+                new ElementDescriptor(ElementDescriptorType.Color, 10, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new ColorElementConstraints()) })),
+                new ElementDescriptor(ElementDescriptorType.CompositeBitmapImage, 11, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new CompositeBitmapImageElementConstraints { SupportedFileFormats = CompositeBitmapImageFileFormats }) }))
             };
 
         public async Task<string> CreateTemplate(long id, AuthorInfo authorInfo, ITemplateDescriptor templateDescriptor)
@@ -75,8 +79,7 @@ namespace NuClear.VStore.Templates
                 throw new ArgumentException("Template Id must be set", nameof(id));
             }
 
-            var redLock = await _distributedLockManager.CreateLockAsync(id);
-            try
+            using (await _distributedLockManager.AcquireLockAsync(id))
             {
                 if (await _templatesStorageReader.IsTemplateExists(id))
                 {
@@ -87,10 +90,6 @@ namespace NuClear.VStore.Templates
 
                 // ceph does not return version-id response header, so we need to do another request to get version
                 return await _templatesStorageReader.GetTemplateLatestVersion(id);
-            }
-            finally
-            {
-                redLock?.Dispose();
             }
         }
 
@@ -106,8 +105,7 @@ namespace NuClear.VStore.Templates
                 throw new ArgumentException("VersionId must be set", nameof(versionId));
             }
 
-            var redLock = await _distributedLockManager.CreateLockAsync(id);
-            try
+            using (await _distributedLockManager.AcquireLockAsync(id))
             {
                 if (!await _templatesStorageReader.IsTemplateExists(id))
                 {
@@ -125,10 +123,6 @@ namespace NuClear.VStore.Templates
                 // ceph does not return version-id response header, so we need to do another request to get version
                 return await _templatesStorageReader.GetTemplateLatestVersion(id);
             }
-            finally
-            {
-                redLock?.Dispose();
-            }
         }
 
         public async Task VerifyElementDescriptorsConsistency(IEnumerable<IElementDescriptor> elementDescriptors)
@@ -140,7 +134,7 @@ namespace NuClear.VStore.Templates
                                    {
                                        if (!codes.TryAdd(x.TemplateCode, true))
                                        {
-                                           throw new TemplateValidationException(x.TemplateCode, TemplateElementValidationErrors.NonUniqueTemplateCode);
+                                           throw new TemplateValidationException(x.TemplateCode, TemplateElementValidationError.NonUniqueTemplateCode);
                                        }
 
                                        foreach (var constraints in x.Constraints)
@@ -162,11 +156,14 @@ namespace NuClear.VStore.Templates
                                                case LinkElementConstraints linkElementConstraints:
                                                    VerifyLinkConstraints(x.TemplateCode, linkElementConstraints);
                                                    break;
+                                               case CompositeBitmapImageElementConstraints compositeBitmapImageElementConstraints:
+                                                   VerifyCompositeBitmapImageConstraints(x.TemplateCode, compositeBitmapImageElementConstraints);
+                                                   break;
                                                case PhoneElementConstraints _:
                                                case ColorElementConstraints _:
                                                    break;
                                                default:
-                                                   throw new ArgumentOutOfRangeException(nameof(constraints.ElementConstraints), constraints.ElementConstraints, "Unsupported element contraints");
+                                                   throw new ArgumentOutOfRangeException(nameof(constraints.ElementConstraints), constraints.ElementConstraints, "Unsupported element constraints");
                                            }
                                        }
                                    }));
@@ -178,27 +175,27 @@ namespace NuClear.VStore.Templates
         {
             if (binaryElementConstraints.SupportedFileFormats == null)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.MissingSupportedFileFormats);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.MissingSupportedFileFormats);
             }
 
             if (!binaryElementConstraints.SupportedFileFormats.Any())
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.EmptySupportedFileFormats);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.EmptySupportedFileFormats);
             }
 
             if (binaryElementConstraints.MaxFilenameLength <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxFilenameLength);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxFilenameLength);
             }
 
             if (binaryElementConstraints.MaxSize <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxSize);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxSize);
             }
 
             if (binaryElementConstraints.MaxSize > _maxBinarySize)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.MaxSizeLimitExceeded);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.MaxSizeLimitExceeded);
             }
         }
 
@@ -209,7 +206,7 @@ namespace NuClear.VStore.Templates
 
             if (articleElementConstraints.SupportedFileFormats.Any(x => !ArticleFileFormats.Contains(x)))
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.UnsupportedArticleFileFormat);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.UnsupportedArticleFileFormat);
             }
         }
 
@@ -220,7 +217,7 @@ namespace NuClear.VStore.Templates
 
             if (vectorImageConstraints.SupportedFileFormats.Any(x => !VectorImageFileFormats.Contains(x)))
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.UnsupportedImageFileFormat);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.UnsupportedImageFileFormat);
             }
         }
 
@@ -230,27 +227,27 @@ namespace NuClear.VStore.Templates
 
             if (imageElementConstraints.SupportedFileFormats.Any(x => !BitmapImageFileFormats.Contains(x)))
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.UnsupportedImageFileFormat);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.UnsupportedImageFileFormat);
             }
 
             if (imageElementConstraints.SupportedImageSizes == null)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.MissingSupportedImageSizes);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.MissingSupportedImageSizes);
             }
 
             if (!imageElementConstraints.SupportedImageSizes.Any())
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.EmptySupportedImageSizes);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.EmptySupportedImageSizes);
             }
 
             if (imageElementConstraints.SupportedImageSizes.Contains(ImageSize.Empty))
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.InvalidImageSize);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidImageSize);
             }
 
             if (imageElementConstraints.SupportedImageSizes.Any(x => x.Height < 0 || x.Width < 0))
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeImageSizeDimension);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeImageSizeDimension);
             }
         }
 
@@ -259,22 +256,22 @@ namespace NuClear.VStore.Templates
         {
             if (textElementConstraints.MaxSymbols < textElementConstraints.MaxSymbolsPerWord)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.InvalidMaxSymbolsPerWord);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidMaxSymbolsPerWord);
             }
 
             if (textElementConstraints.MaxSymbols <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxSymbols);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxSymbols);
             }
 
             if (textElementConstraints.MaxSymbolsPerWord <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxSymbolsPerWord);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxSymbolsPerWord);
             }
 
             if (textElementConstraints.MaxLines <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxLines);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxLines);
             }
         }
 
@@ -283,7 +280,32 @@ namespace NuClear.VStore.Templates
         {
             if (linkElementConstraints.MaxSymbols <= 0)
             {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationErrors.NegativeMaxSymbols);
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeMaxSymbols);
+            }
+        }
+
+        private void VerifyCompositeBitmapImageConstraints(int templateCode, CompositeBitmapImageElementConstraints compositeBitmapImageElementConstraints)
+        {
+            bool SizeRangeIsConsistent(ImageSizeRange range)
+            {
+                return range.Min.Width < range.Max.Width && range.Min.Height < range.Max.Height && range.Min.Width > 0 && range.Min.Height > 0;
+            }
+
+            VerifyBinaryConstraints(templateCode, compositeBitmapImageElementConstraints);
+
+            if (compositeBitmapImageElementConstraints.SizeSpecificImageMaxSize <= 0)
+            {
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.NegativeSizeSpecificImageMaxSize);
+            }
+
+            if (compositeBitmapImageElementConstraints.SupportedFileFormats.Any(x => !CompositeBitmapImageFileFormats.Contains(x)))
+            {
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.UnsupportedImageFileFormat);
+            }
+
+            if (!SizeRangeIsConsistent(compositeBitmapImageElementConstraints.ImageSizeRange))
+            {
+                throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidImageSizeRange);
             }
         }
 

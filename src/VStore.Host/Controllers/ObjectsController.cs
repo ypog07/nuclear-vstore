@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,8 @@ using Microsoft.Net.Http.Headers;
 using NuClear.VStore.DataContract;
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
-using NuClear.VStore.Host.Extensions;
+using NuClear.VStore.Http.Core.Controllers;
+using NuClear.VStore.Http.Core.Extensions;
 using NuClear.VStore.Locks;
 using NuClear.VStore.Objects;
 using NuClear.VStore.Objects.ContentValidation;
@@ -107,7 +109,7 @@ namespace NuClear.VStore.Host.Controllers
         {
             try
             {
-                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, null);
+                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, null, CancellationToken.None);
 
                 Response.Headers[HeaderNames.ETag] = $"\"{objectDescriptor.VersionId}\"";
                 Response.Headers[HeaderNames.LastModified] = objectDescriptor.LastModified.ToString("R");
@@ -148,7 +150,7 @@ namespace NuClear.VStore.Host.Controllers
         {
             try
             {
-                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, versionId);
+                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, versionId, CancellationToken.None);
 
                 Response.Headers[HeaderNames.ETag] = $"\"{objectDescriptor.VersionId}\"";
                 Response.Headers[HeaderNames.LastModified] = objectDescriptor.LastModified.ToString("R");

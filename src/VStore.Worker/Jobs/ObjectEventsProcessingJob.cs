@@ -120,7 +120,7 @@ namespace NuClear.VStore.Worker.Jobs
                                          break;
                                      case LockAlreadyExistsException _:
                                          logger.LogWarning(
-                                             "{taskName}: Got an event for the object currenty locked. Message: {errorMessage}. The event will be processed again.",
+                                             "{taskName}: Got an event for the object currently locked. Message: {errorMessage}. The event will be processed again.",
                                              taskName,
                                              ex.Message);
                                          break;
@@ -128,7 +128,7 @@ namespace NuClear.VStore.Worker.Jobs
                                          logger.LogError(
                                              new EventId(),
                                              ex,
-                                             "{taskName}: Unexpected error occured: {errorMessage}.",
+                                             "{taskName}: Unexpected error occurred: {errorMessage}.",
                                              taskName,
                                              ex.Message);
                                          break;
@@ -248,8 +248,7 @@ namespace NuClear.VStore.Worker.Jobs
                 foreach (var record in versionRecords)
                 {
                     var fileInfos = record.Elements
-                                          .Where(x => x.Value is IBinaryElementValue binaryValue && !string.IsNullOrEmpty(binaryValue.Raw))
-                                          .Select(x => (TemplateCode: x.TemplateCode, FileKey: ((IBinaryElementValue)x.Value).Raw))
+                                          .SelectMany(rec => rec.Value.ExtractFileKeys().Select(key => (TemplateCode: rec.TemplateCode, FileKey: key)))
                                           .ToList();
                     foreach (var fileInfo in fileInfos)
                     {

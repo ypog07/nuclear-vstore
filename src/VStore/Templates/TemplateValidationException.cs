@@ -8,7 +8,7 @@ namespace NuClear.VStore.Templates
 {
     public sealed class TemplateValidationException : Exception
     {
-        public TemplateValidationException(int templateCode, TemplateElementValidationErrors error)
+        public TemplateValidationException(int templateCode, TemplateElementValidationError error)
         {
             TemplateCode = templateCode;
             Error = error;
@@ -16,7 +16,7 @@ namespace NuClear.VStore.Templates
 
         public int TemplateCode { get; }
 
-        public TemplateElementValidationErrors Error { get; }
+        public TemplateElementValidationError Error { get; }
 
         public JToken SerializeToJsonV10()
         {
