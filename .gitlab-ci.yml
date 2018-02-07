@@ -45,6 +45,19 @@ build:cloning-tool:
     expire_in: '1 week'
     paths:
       - publish/cloning-tool/
+      
+build:logo-migrator:
+  image: $REGISTRY/microsoft/dotnet:2.0.5-sdk-2.1.4
+  stage: build
+  when: manual
+  script:
+    - dotnet publish src/AmsMigrator --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/logo-migrator
+  tags: [ 2gis, docker ]
+  artifacts:
+    name: "${CI_COMMIT_REF_NAME}"
+    expire_in: '1 week'
+    paths:
+      - publish/logo-migrator/
 
 build:vstore-host-image:
   stage: dockerize
@@ -88,6 +101,16 @@ build:cloning-tool-image:
   tags: [ docker-engine, io ]
   dependencies:
     - build:cloning-tool
+
+build:logo-migrator-image:
+  stage: build:image
+  when: manual
+  script:
+    - IMAGE=ams/logo-migrator TAG=$CI_TAG DOCKER_FILE=publish/logo-migrator/Dockerfile DOCKER_BUILD_CONTEXT=publish/logo-migrator make docker-build
+    - IMAGE=ams/logo-migrator TAG=$CI_TAG make docker-push
+  tags: [ docker-engine, io ]
+  dependencies:
+    - build:logo-migrator
 
 # ================ Deploy =================
 
@@ -171,6 +194,7 @@ cleanup:registry:
     - make docker-registry-images-cleanup IMAGE=ams/vstore-worker TAG="branch-" TIME_LIFE_IMAGE=604800 # 7 days
     - make docker-registry-images-cleanup IMAGE=ams/vstore-renderer TAG="branch-" TIME_LIFE_IMAGE=604800 # 7 days
     - make docker-registry-images-cleanup IMAGE=ams/cloning-tool TAG="branch-" TIME_LIFE_IMAGE=604800 # 7 days
+    - make docker-registry-images-cleanup IMAGE=ams/logo-migrator TAG="branch-" TIME_LIFE_IMAGE=604800 # 7 days
   dependencies: []
   tags: [ docker-engine, io ]
 
@@ -183,5 +207,6 @@ cleanup:runner:
     - make docker-images-cleanup IMAGE=ams/vstore-worker TAG="branch-" TIME_LIFE_IMAGE=86400 # 1 day
     - make docker-images-cleanup IMAGE=ams/vstore-renderer TAG="branch-" TIME_LIFE_IMAGE=86400 # 1 day
     - make docker-images-cleanup IMAGE=ams/cloning-tool TAG="branch-" TIME_LIFE_IMAGE=86400 # 1 day
+    - make docker-images-cleanup IMAGE=ams/logo-migrator TAG="branch-" TIME_LIFE_IMAGE=86400 # 1 day
   dependencies: []
   tags: [ docker-engine, io ]
