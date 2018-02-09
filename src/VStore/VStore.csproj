@@ -8,7 +8,7 @@
     <PackageReference Include="AWSSDK.S3" Version="3.3.16.2" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.0.0" />
     <PackageReference Include="2GIS.ChmLibCore" Version="1.0.3" />
-    <PackageReference Include="Confluent.Kafka" Version="0.11.3" />
+    <PackageReference Include="Confluent.Kafka" Version="0.11.2-ci-75" />
     <PackageReference Include="HtmlAgilityPack" Version="1.6.13" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
