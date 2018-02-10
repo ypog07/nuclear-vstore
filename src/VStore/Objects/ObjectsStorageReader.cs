@@ -174,6 +174,11 @@ namespace NuClear.VStore.Objects
             var result = await ListVersions(0, null);
             if (objectDescriptors.Count == 0)
             {
+                if (!await IsObjectExists(id))
+                {
+                    throw new ObjectNotFoundException($"Object '{id}' not found.");
+                }
+
                 return Array.Empty<ObjectVersionRecord>();
             }
 
