@@ -174,7 +174,7 @@ namespace NuClear.VStore.Objects
             var result = await ListVersions(0, null);
             if (objectDescriptors.Count == 0)
             {
-                throw new ObjectNotFoundException($"Object '{id}' not found.");
+                return Array.Empty<ObjectVersionRecord>();
             }
 
             while (result.IsTruncated)

@@ -248,7 +248,7 @@ namespace NuClear.VStore.Worker.Jobs
                 foreach (var record in versionRecords)
                 {
                     var fileInfos = record.Elements
-                                          .SelectMany(rec => rec.Value.ExtractFileKeys().Select(key => (TemplateCode: rec.TemplateCode, FileKey: key)))
+                                          .SelectMany(rec => rec.Value.ExtractFileKeys().Select(key => (rec.TemplateCode, FileKey: key)))
                                           .ToList();
                     foreach (var fileInfo in fileInfos)
                     {
