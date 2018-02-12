@@ -119,6 +119,8 @@ namespace VStore.UnitTests
                    .Returns(() => Task.FromResult(new ListVersionsResponse()));
             _mockS3Client.Setup(s3 => s3.ListVersionsAsync(It.IsAny<ListVersionsRequest>()))
                    .Returns(() => Task.FromResult(new ListVersionsResponse()));
+            _mockS3Client.Setup(s3 => s3.ListObjectsV2Async(It.IsAny<ListObjectsV2Request>()))
+                         .Returns(() => Task.FromResult(new ListObjectsV2Response()));
         }
     }
 }
