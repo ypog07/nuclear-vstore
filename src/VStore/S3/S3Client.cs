@@ -39,7 +39,7 @@ namespace NuClear.VStore.S3
         async Task<GetObjectResponse> IS3Client.GetObjectAsync(string bucketName, string key, string versionId, CancellationToken cancellationToken)
             => await _amazonS3.GetObjectAsync(bucketName, key, versionId, cancellationToken);
 
-        async Task<PutObjectResponse> IS3Client.PutObjectAsync(PutObjectRequest request)
+        async Task<PutObjectResponse> IS3Client.PutObjectAsync(ConsistentPutObjectRequest request)
             => await _amazonS3.PutObjectAsync(request);
 
         async Task<DeleteObjectResponse> IS3Client.DeleteObjectAsync(string bucketName, string key)

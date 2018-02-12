@@ -290,11 +290,12 @@ namespace NuClear.VStore.Objects
             }
         }
 
-        private async Task<string> PutObject(long id,
-                                             string versionId,
-                                             AuthorInfo authorInfo,
-                                             IEnumerable<IObjectElementDescriptor> existingObjectElements,
-                                             IObjectDescriptor objectDescriptor)
+        private async Task<string> PutObject(
+            long id,
+            string versionId,
+            AuthorInfo authorInfo,
+            IEnumerable<IObjectElementDescriptor> existingObjectElements,
+            IObjectDescriptor objectDescriptor)
         {
             PreprocessObjectElements(objectDescriptor.Elements);
             await VerifyObjectElementsConsistency(id, objectDescriptor.Language, objectDescriptor.Elements);
@@ -303,7 +304,7 @@ namespace NuClear.VStore.Objects
             await _eventSender.SendAsync(_objectEventsTopic, new ObjectVersionCreatingEvent(id, versionId));
 
             var totalBinariesCount = 0;
-            PutObjectRequest putRequest;
+            ConsistentPutObjectRequest putRequest;
             MetadataCollectionWrapper metadataWrapper;
 
             foreach (var elementDescriptor in objectDescriptor.Elements)
@@ -311,7 +312,7 @@ namespace NuClear.VStore.Objects
                 var (elementPersistenceValue, binariesCount) = ConvertToPersistenceValue(elementDescriptor.Value, metadataForBinaries);
                 var elementPersistenceDescriptor = new ObjectElementPersistenceDescriptor(elementDescriptor, elementPersistenceValue);
                 totalBinariesCount += binariesCount;
-                putRequest = new PutObjectRequest
+                putRequest = new ConsistentPutObjectRequest
                     {
                         Key = id.AsS3ObjectKey(elementDescriptor.Id),
                         BucketName = _bucketName,
@@ -339,7 +340,7 @@ namespace NuClear.VStore.Objects
                     Properties = objectDescriptor.Properties,
                     Elements = elementVersions
                 };
-            putRequest = new PutObjectRequest
+            putRequest = new ConsistentPutObjectRequest
                 {
                     Key = objectKey,
                     BucketName = _bucketName,

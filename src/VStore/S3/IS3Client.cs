@@ -15,7 +15,7 @@ namespace NuClear.VStore.S3
         Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string bucketName, string key, string versionId);
         Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, CancellationToken cancellationToken = default);
         Task<GetObjectResponse> GetObjectAsync(string bucketName, string key, string versionId, CancellationToken cancellationToken = default);
-        Task<PutObjectResponse> PutObjectAsync(PutObjectRequest request);
+        Task<PutObjectResponse> PutObjectAsync(ConsistentPutObjectRequest request);
         Task<DeleteObjectResponse> DeleteObjectAsync(string bucketName, string key);
         Task<CopyObjectResponse> CopyObjectAsync(CopyObjectRequest request);
     }

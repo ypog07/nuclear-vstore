@@ -94,7 +94,7 @@ namespace NuClear.VStore.Sessions
                                             Language = language,
                                             BinaryElementTemplateCodes = templateDescriptor.GetBinaryElementTemplateCodes()
                                         };
-            var request = new PutObjectRequest
+            var request = new ConsistentPutObjectRequest
                               {
                                   BucketName = _filesBucketName,
                                   Key = sessionId.AsS3ObjectKey(Tokens.SessionPostfix),

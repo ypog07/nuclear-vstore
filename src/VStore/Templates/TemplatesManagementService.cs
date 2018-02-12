@@ -313,7 +313,7 @@ namespace NuClear.VStore.Templates
         {
             await VerifyElementDescriptorsConsistency(templateDescriptor.Elements);
 
-            var putRequest = new PutObjectRequest
+            var putRequest = new ConsistentPutObjectRequest
                 {
                     Key = id.ToString(),
                     BucketName = _bucketName,
