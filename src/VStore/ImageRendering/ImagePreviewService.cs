@@ -186,7 +186,7 @@ namespace NuClear.VStore.ImageRendering
             }
 
             var unionRectangle = Rectangle.Union(imageRectangle, cropAreaRectangle);
-            cropAreaRectangle.Offset(-unionRectangle.X, -cropAreaRectangle.Y);
+            cropAreaRectangle.Offset(-unionRectangle.X, -unionRectangle.Y);
 
             var extentImage = new Image<Rgba32>(unionRectangle.Width, unionRectangle.Height);
             extentImage.Mutate(x => x.BackgroundColor(backgroundColor)
@@ -220,7 +220,7 @@ namespace NuClear.VStore.ImageRendering
             var corners = GetClippedRect(image.Width, image.Height, cornerRadius);
             image.Mutate(ctx => ctx.Fill(Rgba32.Transparent,
                                          corners,
-                                         new GraphicsOptions { BlenderMode = PixelBlenderMode.Src }));
+                                         new GraphicsOptions { BlenderMode = PixelBlenderMode.Src, Antialias = false }));
         }
 
         private static IPath GetClippedRect(int imageWidth, int imageHeight, float cornerRadius)
