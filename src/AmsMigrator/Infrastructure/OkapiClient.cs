@@ -43,7 +43,6 @@ namespace AmsMigrator.Infrastructure
         {
             _httpClient = new HttpClient();
             _httpClient.Configure(token: options.OkApiAuthToken, timeout: 30);
-            _httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
             _baseUri = options.OkApiBaseUri;
             _apiVersion = options.OkApiApiVersion;
@@ -55,9 +54,9 @@ namespace AmsMigrator.Infrastructure
               .WaitAndRetryAsync(options.HttpServicesRetryCount, retryAttempt => TimeSpan.FromSeconds(10), (dr, ts, rc, _) =>
               {
                   if (dr.Exception != null)
-                      _logger.Error("Exception {0} occured, retry attempt: {1}, timeout: {2}", dr.Exception.GetType().Name, rc, ts);
+                      _logger.Error(dr.Exception, "[HTTP_DEST] Exception {exception} occured, retry attempt: {retryCount}, timeout: {timeout}", dr.Exception.GetType().Name, rc, ts);
                   if (dr.Result != null)
-                      _logger.Error("Invalid result {0} obtained, retry attempt: {1}, timeout: {2}", dr.Result, rc, ts);
+                      _logger.Error("[HTTP_DEST] Invalid result {httpResult} obtained, retry attempt: {retryCount}, timeout: {timeout}", dr.Result, rc, ts);
               });
 
             _moderationStateMap = new Dictionary<string, string>
@@ -70,9 +69,11 @@ namespace AmsMigrator.Infrastructure
         {
             var uri = _baseUri + $"/api/{_apiVersion}/{type}/{code}/session?firm={firm}&languages={language}";
 
+            long materialsStubId = 0;
+
             try
             {
-                using (var response = await _retryPolicy.ExecuteAsync(() => _httpClient.PostAsync(uri, new StringContent(String.Empty, Encoding.UTF8, "application/json"))))
+                using (var response = await _httpClient.PostAsync(uri, new StringContent(String.Empty, Encoding.UTF8, "application/json")))
                 {
                     var content = await response.Content.ReadAsStringAsync();
 
@@ -82,12 +83,14 @@ namespace AmsMigrator.Infrastructure
                         response.EnsureSuccessStatusCode();
                     }
 
-                    return content != null ? MaterialStub.FromJson(content).First() : null;
+                    var stub = MaterialStub.FromJson(content).First();
+                    materialsStubId = stub.Id;
+                    return content != null ? stub : null;
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Exception occured while creating AM template");
+                _logger.Error(ex, "Exception occured while creating AM template for firmId: {firmId}, stubId: {stubId}", firm, materialsStubId);
                 throw;
             }
         }
@@ -99,7 +102,7 @@ namespace AmsMigrator.Infrastructure
             try
             {
                 var reqContent = stub.ToJson();
-                using (var response = await _retryPolicy.ExecuteAsync(() => _httpClient.PutAsync(uri, new StringContent(reqContent, Encoding.UTF8, "application/json"))))
+                using (var response = await _httpClient.PutAsync(uri, new StringContent(reqContent, Encoding.UTF8, "application/json")))
                 {
                     var content = await response.Content.ReadAsStringAsync();
 
@@ -114,7 +117,7 @@ namespace AmsMigrator.Infrastructure
                         if (response.StatusCode == HttpStatusCode.Conflict)
                         {
                             _logger.Warning("Conflict occured while creating material with id {id}; Response: {response}; Content: {content}", id, response, content);
-                            _logger.Information("[RECOVERING] Trying to get material from okapi...", id, response, content);
+                            _logger.Warning("[RECOVERING] Trying to get material {id} from okapi.", id);
 
                             var am = await GetMaterialAsync(id);
                             return am.FirstOrDefault();
@@ -129,7 +132,7 @@ namespace AmsMigrator.Infrastructure
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Exception occured while creating new AM");
+                _logger.Error(ex, "[AM_CREATION_FAIL] Exception occured while creating new AM {amid}", id);
                 throw;
             }
         }
@@ -168,7 +171,7 @@ namespace AmsMigrator.Infrastructure
                 var request = new ModerationRequest { Status = status, Comment = materialData.ModerationComment ?? string.Empty };
                 var reqContent = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
 
-                using (var response = await _retryPolicy.ExecuteAsync(() => _httpClient.PutAsync(uri, reqContent)))
+                using (var response = await _httpClient.PutAsync(uri, reqContent))
                 {
                     var content = await response.Content.ReadAsStringAsync();
 
@@ -176,7 +179,7 @@ namespace AmsMigrator.Infrastructure
                     {
                         if (response.StatusCode == HttpStatusCode.PreconditionFailed)
                         {
-                            _logger.Warning("[MODERATION_FAIL] Unable to add moderation to material {amid} uuid {uuid} firm {firmid}. Moderation info: {info}, Response: {content}", amId, materialData.Uuid, materialData.FirmId, request, content);
+                            _logger.Error("[MODERATION_FAIL] Unable to add moderation to material {amid} uuid {uuid} firm {firmid}. Moderation info: {info}, Response: {content}", amId, materialData.Uuid, materialData.FirmId, request, content);
                         }
                         else
                         {
@@ -218,7 +221,7 @@ namespace AmsMigrator.Infrastructure
                         content.Headers.Add("x-ams-image-size", imageSizeHeaderValue);
                     }
 
-                    using (var response = await _retryPolicy.ExecuteAsync(() => _httpClient.PostAsync(url, content)))
+                    using (var response = await _httpClient.PostAsync(url, content))
                     {
                         var stringResponse = await response.Content.ReadAsStringAsync();
 

@@ -23,7 +23,7 @@ namespace AmsMigrator.ImportStrategies
             _okapiClient = okapiClient;
         }
 
-        public async Task<OrderMaterialBindingData> ExecuteAsync(Amsv1MaterialData amsv1Data)
+        public async Task<MaterialCreationResult> ExecuteAsync(Amsv1MaterialData amsv1Data)
         {
             try
             {
@@ -44,26 +44,19 @@ namespace AmsMigrator.ImportStrategies
                 var material = await _okapiClient.CreateNewMaterialAsync(advMaterialStub.Id, amsv1Data.FirmId, advMaterialStub);
 
                 _logger.Information("Material {stubId} has been created", advMaterialStub.Id);
-
-                if (IsMigrationNeededForMaterial(amsv1Data))
-                {
-                    _logger.Information("Migrating moderation info for material {stubId} version {versionId} started", advMaterialStub.Id, material.VersionId);
-                    await _okapiClient.SetModerationState(advMaterialStub.Id, material.VersionId, amsv1Data);
-                    _logger.Information("Migrating moderation info for material {stubId} version {versionId} completed", advMaterialStub.Id, material.VersionId);
-                }
-
                 _logger.Information("Strategy {name} has been completed successfully. Material id: {uuid}; Firm id: {firmid}", Name, amsv1Data.Uuid, amsv1Data.FirmId);
 
-                return new OrderMaterialBindingData
+                return new MaterialCreationResult
                 {
                     MaterialId = advMaterialStub.Id,
                     FirmId = amsv1Data.FirmId,
-                    BindedNomenclatures = GetBindedNomenclatures()
+                    BindedNomenclatures = GetBindedNomenclatures(),
+                    VersionId = material.VersionId
                 };
             }
             catch (UnprocessableEntityException ueex)
             {
-                _logger.Warning("[UNPROCESSABLE] {uuid} {firmid} {content} {header}", amsv1Data.Uuid, amsv1Data.FirmId, ueex.Content, ueex.CustomImageHeader);
+                _logger.Error("[UNPROCESSABLE] {uuid} {firmid} {content} {header}", amsv1Data.Uuid, amsv1Data.FirmId, ueex.Content, ueex.CustomImageHeader);
 
                 return null;
             }
@@ -72,11 +65,6 @@ namespace AmsMigrator.ImportStrategies
                 _logger.Information("Failed to process AM with AMS 1.0 id: {uuid} {firmid}", amsv1Data.Uuid, amsv1Data.FirmId);
                 throw;
             }
-        }
-
-        private bool IsMigrationNeededForMaterial(Amsv1MaterialData amsv1Data)
-        {
-            return _options.StatusesForMigration.Any(s => s.Name.Equals(amsv1Data.ModerationState) && s.MigrationNeeded);
         }
 
         protected abstract Task PatchStubAsync(MaterialStub stub, Amsv1MaterialData amsv1Data);

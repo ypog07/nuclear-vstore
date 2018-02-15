@@ -1,4 +1,6 @@
-﻿using AmsMigrator.Models;
+﻿using System;
+
+using AmsMigrator.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -16,9 +18,16 @@ namespace AmsMigrator
         public ErmContext GetNewContext()
         {
             var contextOptions = new DbContextOptionsBuilder<ErmContext>()
-                .UseLoggerFactory(new LoggerFactory().AddSerilog())
-                .UseSqlServer(_options.SourceDbConnectionString)
-                .Options;
+                                 .UseLoggerFactory(new LoggerFactory().AddSerilog())
+                                 .UseSqlServer(_options.SourceDbConnectionString,
+                                               sqlServerOptionsAction: sqlOptions =>
+                                                                           {
+                                                                               sqlOptions.EnableRetryOnFailure(
+                                                                                   maxRetryCount: 5,
+                                                                                   maxRetryDelay: TimeSpan.FromSeconds(30),
+                                                                                   errorNumbersToAdd: null);
+                                                                           })
+                                 .Options;
             return new ErmContext(contextOptions);
         }
     }

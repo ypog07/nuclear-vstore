@@ -1,9 +1,14 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace AmsMigrator.Models
 {
     public class Amsv1MaterialData
     {
+        public Amsv1MaterialData()
+        {
+            MaterialCreationData = new Dictionary<ImportTarget, MaterialCreationResult>();
+        }
         public string Uuid { get; set; }
         public long FirmId { get; set; }
 
@@ -33,8 +38,6 @@ namespace AmsMigrator.Models
 
         public long? ImageWidth { get; set; }
 
-        public byte[] ImageDataOriginal { get; set; }
-
         public byte[] ImageData { get; set; }
 
         public string ModerationComment { get; set; }
@@ -49,10 +52,19 @@ namespace AmsMigrator.Models
 
         public ImportTarget ReachedTarget { get; set; }
 
-        public void Complete(ImportTarget target)
+        public void CompleteCreation(ImportTarget target)
         {
             ReachedTarget |= target;
         }
+
+        public ImportTarget ModerationCompletedTarget { get; set; }
+
+        public void CompleteModeration(ImportTarget target)
+        {
+            ModerationCompletedTarget |= target;
+        }
+
+        public Dictionary<ImportTarget, MaterialCreationResult> MaterialCreationData { get; set; }
 
         public int QueueTries { get; set; }
 

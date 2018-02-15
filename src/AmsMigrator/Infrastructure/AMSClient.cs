@@ -28,7 +28,7 @@ namespace AmsMigrator.Infrastructure
         private HttpClient _httpClient;
         private ImportOptions _options;
         private Regex _colorCodePattern = new Regex("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", RegexOptions.Compiled);
-        private const string DefaultBackgroundColor = "#FFFFFF";
+        private const string DefaultBackgroundColor = "#000000";
 
         HttpStatusCode[] _httpStatusCodesWorthRetrying = {
             HttpStatusCode.RequestTimeout, // 408
@@ -57,9 +57,9 @@ namespace AmsMigrator.Infrastructure
               .WaitAndRetryAsync(options.HttpServicesRetryCount, retryAttempt => TimeSpan.FromSeconds(10), (dr, ts, rc, _) =>
               {
                   if (dr.Exception != null)
-                      _logger.Error("Exception {0} occured, retry attempt: {1}, timeout: {2}", dr.Exception.GetType().Name, rc, ts);
+                      _logger.Error(dr.Exception, "[HTTP_SRC] Exception {exception} occured, retry attempt: {retryCount}, timeout: {timeout}", dr.Exception.GetType().Name, rc, ts);
                   if (dr.Result != null)
-                      _logger.Error("Invalid result {0} obtained, retry attempt: {1}, timeout: {2}", dr.Result, rc, ts);
+                      _logger.Error("[HTTP_SRC] Invalid result {httpResult} obtained, retry attempt: {retryCount}, timeout: {timeout}", dr.Result, rc, ts);
               });
         }
 
@@ -173,7 +173,7 @@ namespace AmsMigrator.Infrastructure
             {
                 if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.NoContent)
                 {
-                    _logger.Warning("[ENV_SYNC] AM with id {uuid} wouldn't be processed due to {status} server response.", input.uuid, response.StatusCode);
+                    _logger.Error("[ENV_SYNC] AM with id {uuid} wouldn't be processed due to {status} server response.", input.uuid, response.StatusCode);
                     return null;
                 }
                 response.EnsureSuccessStatusCode();
@@ -219,7 +219,7 @@ namespace AmsMigrator.Infrastructure
 
                 if (_options.MaxImageSizeLimit != null && logo.Height > _options.MaxImageSizeLimit || logo.Width > _options.MaxImageSizeLimit)
                 {
-                    _logger.Warning("[IMG_TOO_LARGE] Logo image from am {uuid} firm {firm} cannot be imported, because its size exceeds the limit. Image size: {w}x{h}; Limit: {limit}x{limit}",
+                    _logger.Error("[IMG_TOO_LARGE] Logo image from am {uuid} firm {firm} cannot be imported, because its size exceeds the limit. Image size: {w}x{h}; Limit: {limit}x{limit}",
                         input.uuid, materialData.Meta.FirmId, logo.Width, logo.Height, _options.MaxImageSizeLimit);
                     return null;
                 }
@@ -254,9 +254,9 @@ namespace AmsMigrator.Infrastructure
                 };
 
                 var imgContent = await GetFileContentAsync(logo.Url);
-                data.ImageDataOriginal = imgContent;
+                data.ImageData = imgContent;
 
-                if (zmkData.Any() && _options.Targets.HasFlag(ImportTarget.ZmkBrending) && miniImagesNeeded)
+                if (zmkData.Any() && _options.Targets.HasFlag(ImportTarget.ZmkBrendingLogotypes) && miniImagesNeeded)
                 {
                     data.SizeSpecificImages = await FetchCustomImagesDataAsync(zmkData);
                 }
@@ -310,13 +310,18 @@ namespace AmsMigrator.Infrastructure
 
         private async Task<SizeSpecificImageData[]> FetchCustomImagesDataAsync(IEnumerable<Datum> zmkData)
         {
-            var tasks = zmkData.Select(FetchCustomImageDataAsync).ToArray();
 
             try
             {
-                var resultImages = await Task.WhenAll(tasks);
+                var resultImages = new List<SizeSpecificImageData>();
 
-                return resultImages;
+                foreach (var data in zmkData)
+                {
+                    var single = await FetchCustomImageDataAsync(data);
+                    resultImages.Add(single);
+                }
+
+                return resultImages.ToArray();
             }
             catch (Exception ex)
             {
@@ -358,7 +363,7 @@ namespace AmsMigrator.Infrastructure
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"An error occurred while downloading file {fileUrl} content.");
+                _logger.Error(ex, $"An error occurred while downloading file {fileUrl} content.", fileUrl);
                 throw;
             }
         }

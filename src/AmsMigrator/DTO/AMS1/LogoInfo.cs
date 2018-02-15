@@ -35,7 +35,7 @@ namespace AmsMigrator.DTO.AMS1
         public int? Height { get; set; }
 
         public int? Width { get; set; }
-        
+
         public string Name { get; set; }
 
         public long? Size { get; set; }

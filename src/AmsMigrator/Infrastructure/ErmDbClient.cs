@@ -31,7 +31,7 @@ namespace AmsMigrator.Infrastructure
                                  join op in context.OrderPositions on o.Id equals op.OrderId
                                  where !o.IsDeleted
                                        && o.IsActive
-                                       && o.EndDistributionDateFact >= sinceDate 
+                                       && o.EndDistributionDateFact >= sinceDate
                                        && !op.IsDeleted
                                        && op.IsActive
                                  select new { o.FirmId, ProjectId = o.DestOrganizationUnit.DgppId };
@@ -50,13 +50,13 @@ namespace AmsMigrator.Infrastructure
             using (var context = _contextFactory.GetNewContext())
             {
                 var linkedOrders = (from o in context.Orders
-                                          join op in context.OrderPositions on o.Id equals op.OrderId
-                                          join pp in context.PricePositions on op.PricePositionId equals pp.Id
-                                          join p in context.Positions on pp.PositionId equals p.Id
-                                          where !o.IsDeleted && o.IsActive
-                                                && o.EndDistributionDateFact >= sinceDate
-                                                && !op.IsDeleted && op.IsActive && nomenclatureIds.Contains(p.Id)
-                                          select o.FirmId)
+                                    join op in context.OrderPositions on o.Id equals op.OrderId
+                                    join pp in context.PricePositions on op.PricePositionId equals pp.Id
+                                    join p in context.Positions on pp.PositionId equals p.Id
+                                    where !o.IsDeleted && o.IsActive
+                                          && o.EndDistributionDateFact >= sinceDate
+                                          && !op.IsDeleted && op.IsActive && nomenclatureIds.Contains(p.Id)
+                                    select o.FirmId)
                                             .Union(from o in context.Orders
                                                    join op in context.OrderPositions on o.Id equals op.OrderId
                                                    join pp in context.PricePositions on op.PricePositionId equals pp.Id
@@ -66,64 +66,83 @@ namespace AmsMigrator.Infrastructure
                                                    where !o.IsDeleted && o.IsActive
                                                          && o.EndDistributionDateFact >= sinceDate
                                                          && !op.IsDeleted && op.IsActive && nomenclatureIds.Contains(pcg.ChildPositionId)
-                                                   select o.FirmId)
-                                                   .Distinct()
-                                  .ToList();
-                return linkedOrders;
+                                                   select o.FirmId);
+
+                return linkedOrders.Distinct().ToList();
             }
         }
 
-        public async Task<int> BindMaterialToOrderAsync(List<OrderMaterialBindingData> orderBindindData)
+        public async Task<int> BindMaterialToOrderAsync(IEnumerable<MaterialCreationResult> orderBindindData)
         {
             int ordersCount = 0;
 
             using (var context = _contextFactory.GetNewContext())
             using (var repo = new SimpleRepository<OrderPositionAdvertisement>(context))
             {
-                using (var tran = await context.Database.BeginTransactionAsync())
+                var strategy = context.Database.CreateExecutionStrategy();
+
+                await strategy.ExecuteAsync(async () =>
                 {
-                    try
+
+                    using (var tran = await context.Database.BeginTransactionAsync())
                     {
-                        foreach (var item in orderBindindData)
+                        try
                         {
-                            var orderPositionAdvertisements = await (from opa in context.OrderPositionAdvertisement
-                                                                     join op in context.OrderPositions on opa.OrderPositionId equals op.Id
-                                                                     join or in context.Orders on op.OrderId equals or.Id
-                                                                     where or.FirmId == item.FirmId && !or.IsDeleted
-                                                                           && or.IsActive && !op.IsDeleted && op.IsActive && item.BindedNomenclatures.Contains(opa.PositionId)
-                                                                     select new OrderPositionAdvertisementOrder { OPA = opa, Order = or })
-                                          .ToListAsync();
-
-                            _logger.Information("[BINDED_ORDERS] {orderCount} orders found for material {material} firm {firm}", orderPositionAdvertisements.Count, item.MaterialId, item.FirmId);
-
-                            if (!orderPositionAdvertisements.Any()) continue;
-                            ordersCount = orderPositionAdvertisements.Count;
-
-                            foreach (var opa in orderPositionAdvertisements)
+                            foreach (var item in orderBindindData)
                             {
-                                opa.OPA.AdvertisementId = item.MaterialId;
-                                opa.OPA.ModifiedOn = DateTime.Now;
-                                opa.OPA.ModifiedBy = _options.ErmUserId;
+                                var orderPositionAdvertisements = await (from opa in context.OrderPositionAdvertisement
+                                                                         join op in context.OrderPositions on opa.OrderPositionId equals op.Id
+                                                                         join or in context.Orders on op.OrderId equals or.Id
+                                                                         where or.FirmId == item.FirmId && !or.IsDeleted
+                                                                                                        && or.IsActive && !op.IsDeleted &&
+                                                                                                        op.IsActive && item
+                                                                                                                       .BindedNomenclatures
+                                                                                                                       .Contains(opa.PositionId)
+                                                                         select new OrderPositionAdvertisementOrder { OPA = opa, Order = or })
+                                                                      .ToListAsync();
 
-                                repo.Edit(opa.OPA);
+                                _logger.Information("[BINDED_ORDERS] {orderCount} orders found for material {material} firm {firm}",
+                                                    orderPositionAdvertisements.Count,
+                                                    item.MaterialId,
+                                                    item.FirmId);
 
-                                _logger.Information("[MATERIAL_ORDER_BINDING] Material {materialId} firm {firmId} has been successfully binded to order {orderId}", item.MaterialId, item.FirmId, opa.Order.Id);
+                                if (!orderPositionAdvertisements.Any()) continue;
+                                ordersCount += orderPositionAdvertisements.Count;
 
-                                await context.Database.ExecuteSqlCommandAsync("exec Adm.PushOrder2Primary {0}", opa.Order.Id);
+                                foreach (var opa in orderPositionAdvertisements)
+                                {
+                                    opa.OPA.AdvertisementId = item.MaterialId;
+                                    opa.OPA.ModifiedOn = DateTime.UtcNow;
+                                    opa.OPA.ModifiedBy = _options.ErmUserId;
 
-                                _logger.Information("[SP_EXEC] Stored procedure called for order: {orderId}", opa.Order.Id);
+                                    repo.Edit(opa.OPA);
+
+                                    _logger.Information(
+                                        "[MATERIAL_ORDER_BINDING] Material {materialId} firm {firmId} has been successfully binded to order {orderId}",
+                                        item.MaterialId,
+                                        item.FirmId,
+                                        opa.Order.Id);
+
+                                    await context.Database.ExecuteSqlCommandAsync("exec Adm.PushOrder2Primary {0}", opa.Order.Id);
+
+                                    _logger.Information("[SP_EXEC] Stored procedure called for order: {orderId}", opa.Order.Id);
+                                }
+
                             }
 
-                        }
-                        await repo.CommitChangesAsync();
+                            await repo.CommitChangesAsync();
 
-                        tran.Commit();
+                            tran.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(ex, "[BINDING_FAILED] Unable to bind materials to orders: {materialIds}",
+                                          string.Join(", ", orderBindindData.Select(x => $"({x.FirmId} - {x.MaterialId})")));
+                            tran.Rollback();
+                            throw;
+                        }
                     }
-                    catch (Exception)
-                    {
-                        tran.Rollback();
-                    }
-                }
+                });
             }
             return ordersCount;
         }

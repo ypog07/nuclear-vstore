@@ -18,6 +18,8 @@ using SixLabors.ImageSharp;
 using System.IO;
 using AmsMigrator.Helpers;
 
+using Serilog.Context;
+
 namespace AmsMigrator
 {
     public class AdvertisementMaterialsImporter
@@ -25,34 +27,46 @@ namespace AmsMigrator
         private readonly IErmDbClient _dbClient;
         private readonly ImportOptions _options;
         private readonly IAmsClient _amsClient;
+        protected readonly IOkapiClient _okapiClient;
         private readonly IServiceProvider _container;
         private readonly ILogger _logger = Log.Logger;
         private readonly HashSet<long> _kbFirms;
         private readonly HashSet<long> _zmkFirms;
         private readonly ConcurrentQueue<Amsv1MaterialData> _deferredQueue;
+        private readonly ConcurrentQueue<(long[] Batch, int RetryAttempt)> _fetchingQueue;
         private int _processedAdCounter;
         private int _processedLogoCounter;
         private int _processedKbCounter;
         private int _processedZmkCounter;
         private int _bindedOrdersCounter;
         private int _fetchedAmCounter;
+        private int _currentBatchCounter;
+        private double _totalBatchesCount;
+        private readonly Timer _speedEstimatingTimer;
+        private int _speedEstimatingCounter;
 
-        public AdvertisementMaterialsImporter(ImportOptions options, IAmsClient amsClient, IErmDbClient dbClient, IServiceProvider container)
+        public AdvertisementMaterialsImporter(ImportOptions options, IAmsClient amsClient, IOkapiClient okapiClient, IErmDbClient dbClient, IServiceProvider container)
         {
             _amsClient = amsClient;
+            _okapiClient = okapiClient;
             _options = options;
             _dbClient = dbClient;
             _container = container;
-            _kbFirms = _dbClient.GetFirmIdsForGivenPositions(_options.ThresholdDate, _options.KbLogoTriggerNomenclatures).ToHashSet();
-            _zmkFirms = _dbClient.GetFirmIdsForGivenPositions(_options.ThresholdDate, _options.ZmkLogoTriggerNomenclatures).ToHashSet();
             _deferredQueue = new ConcurrentQueue<Amsv1MaterialData>();
+            _fetchingQueue = new ConcurrentQueue<(long[] Batch, int RetryAttempt)>();
+            _speedEstimatingTimer = new Timer(ReportMigrationPace, null, 0, 60000);
 
             Stats.Collector["fetch"] = 0;
             Stats.Collector["import"] = 0;
             Stats.Collector["imgProc"] = 0;
             Stats.Collector["binding"] = 0;
             Stats.Collector["full"] = 0;
+
+            _kbFirms = _dbClient.GetFirmIdsForGivenPositions(_options.ThresholdDate, _options.KbLogoTriggerNomenclatures).ToHashSet();
+            _zmkFirms = _dbClient.GetFirmIdsForGivenPositions(_options.ThresholdDate, _options.ZmkLogoTriggerNomenclatures).ToHashSet();
         }
+
+        public double TotalBatchesCount => _totalBatchesCount;
 
         public async Task StartImportAsync(string[] adUuids)
         {
@@ -67,7 +81,7 @@ namespace AmsMigrator
                 var amsv1Data = await _amsClient.GetLogoInfoByUidAsync(partWithCommit, true);
 
                 Parallel.ForEach(amsv1Data,
-                            new ParallelOptions { MaxDegreeOfParallelism = 4 }, PatchSourceImportData);
+                            new ParallelOptions { MaxDegreeOfParallelism = 4 }, n => PatchSourceImportData(n, true));
 
                 if (amsv1Data.Length == 0)
                     continue;
@@ -111,17 +125,17 @@ namespace AmsMigrator
 
                 var firms = await _dbClient.GetAdvertiserFirmIdsAsync(_options.ThresholdDate);
 
-                firms = firms.OrderBy(n => n).ToList();
-
-                if (_options.StartAfterFirmId != null)
-                {
-                    firms = firms.SkipWhile(firmId => firmId <= startAfterFirmId).ToList();
-                }
-
                 if (_options.TestMode.Enabled)
                 {
                     firms = firms.Take(testModeLimit).ToList();
                 }
+
+                if (_options.StartAfterFirmId != null)
+                {
+                    firms = firms.OrderBy(n => n).SkipWhile(f => f <= startAfterFirmId).ToList();
+                    _totalBatchesCount = CalculateBatchCount(firms.Count);
+                }
+
                 _logger.Verbose($"All (Company logo) advertiser ids: {string.Join(",", firms.Select(i => i.ToString()))}");
                 _logger.Verbose($"KB advertiser ids: {string.Join(",", _kbFirms.Select(i => i.ToString()))}");
                 _logger.Verbose($"ZMK advertiser ids: {string.Join(",", _zmkFirms.Select(i => i.ToString()))}");
@@ -137,7 +151,7 @@ namespace AmsMigrator
 
                         var amsv1Data = await _amsClient.GetAmsv1DataAsync(firmId, true);
 
-                        PatchSourceImportData(amsv1Data);
+                        PatchSourceImportData(amsv1Data, true);
 
                         if (amsv1Data == null)
                         {
@@ -154,13 +168,9 @@ namespace AmsMigrator
                 else
                 if (_options.Mode == AdExportMode.Batch)
                 {
-                    var logoFirms = firms.Except(_kbFirms).Except(_zmkFirms).ToList();
-                    var kbFirms = firms.Intersect(_kbFirms).ToList();
-                    var zmkFirms = firms.Intersect(_zmkFirms).ToList();
+                    _totalBatchesCount = CalculateBatchCount(firms.Count);
 
-                    await RunBatchedImport(logoFirms, false);
-                    await RunBatchedImport(kbFirms, false);
-                    await RunBatchedImport(zmkFirms, true);
+                    await RunBatchedImport(firms, progress);
                 }
 
                 _logger.Information("Executing retry queue. Initial queue length {length}", _deferredQueue.Count);
@@ -170,14 +180,14 @@ namespace AmsMigrator
                     var bindingData = await PerformImportForSingleData(ad);
                     await RunBindingWorker(bindingData);
 
-                    _logger.Information("{length} elements remaining in queue.", _deferredQueue.Count);
+                    _logger.Information("[RETRY_QUEUE_LENGTH] {length} elements remaining in queue.", _deferredQueue.Count);
                 }
 
                 sw.Stop();
 
                 DumpDeferredQueue();
 
-                return _processedAdCounter;
+                return _processedLogoCounter + _processedKbCounter + _processedZmkCounter;
             }
             catch (Exception ex)
             {
@@ -207,6 +217,8 @@ namespace AmsMigrator
                 _logger.Information("Execution time: {0}", sw.Elapsed);
                 _logger.Information("Average import pace: {n:0.00} ad/s", _processedAdCounter / (sw.ElapsedMilliseconds / 1000d));
 
+                _speedEstimatingTimer.Dispose();
+
                 if (_options.TestMode.Enabled)
                 {
                     _logger.Information("Test mode execution is finished. Test data size is: {size}", _options.TestMode.Limit);
@@ -214,47 +226,92 @@ namespace AmsMigrator
             }
         }
 
-        private async Task RunBatchedImport(IEnumerable<long> firmIds, bool fetchMiniImages)
+        private double CalculateBatchCount(int logo)
+        {
+            var firmsCount = Math.Ceiling(logo / (double)_options.BatchSize);
+            return firmsCount;
+        }
+
+        private async Task RunBatchedImport(IEnumerable<long> firmIds, IProgress<double> progress)
         {
             var batches = firmIds
-                             .Select((x, i) => new { Index = i, Value = x })
-                             .GroupBy(x => x.Index / _options.BatchSize)
-                             .Select(x => x.Select(v => v.Value).ToArray());
+                          .Select((x, i) => new { Index = i, Value = x })
+                          .GroupBy(x => x.Index / _options.BatchSize)
+                          .Select(x => x.Select(v => v.Value).ToArray());
 
             foreach (var batch in batches)
             {
-                var amsv1Data = await RunFetchingWorker(batch, fetchMiniImages);
+                var fetchMiniImages = batch.ContainsElementOfHashset(_zmkFirms);
+
+                var amsv1Data = await RunFetchingWorker(batch, 0, fetchMiniImages);
+
                 var bindingData = await RunImportWorker(amsv1Data);
                 await RunBindingWorker(bindingData);
+
+                _currentBatchCounter++;
+                progress.Report(_currentBatchCounter);
+            }
+
+            while (_fetchingQueue.TryDequeue(out var item))
+            {
+                var attempt = item.RetryAttempt += 1;
+                var fetchMiniImages = item.Batch.ContainsElementOfHashset(_zmkFirms);
+
+                var amsv1Data = await RunFetchingWorker(item.Batch, attempt, fetchMiniImages);
+                var bindingData = await RunImportWorker(amsv1Data);
+                await RunBindingWorker(bindingData);
+
+                _currentBatchCounter++;
+                progress.Report(_currentBatchCounter);
+
+                _logger.Information("{length} elements remaining in fetching queue.", _fetchingQueue.Count);
             }
         }
 
-        private async Task<Amsv1MaterialData[]> RunFetchingWorker(long[] part, bool miniImagesNeeded)
+        private async Task<Amsv1MaterialData[]> RunFetchingWorker(long[] part, int retryAttempt, bool miniImagesNeeded)
         {
             var sw = new Stopwatch();
 
-            sw.Start();
-            var amsv1Data = await _amsClient.GetAmsv1DataAsync(part, miniImagesNeeded);
-            sw.Stop();
-            Stats.Collector["fetch"] += sw.ElapsedMilliseconds;
-            sw.Reset();
-            Interlocked.Add(ref _fetchedAmCounter, amsv1Data.Length);
+            try
+            {
+                sw.Start();
+                var amsv1Data = await _amsClient.GetAmsv1DataAsync(part, miniImagesNeeded);
+                sw.Stop();
+                Stats.Collector["fetch"] += sw.ElapsedMilliseconds;
+                sw.Reset();
+                Interlocked.Add(ref _fetchedAmCounter, amsv1Data.Length);
 
-            sw.Start();
-            Parallel.ForEach(amsv1Data,
-                new ParallelOptions { MaxDegreeOfParallelism = 4 }, PatchSourceImportData);
-            sw.Stop();
-            Stats.Collector["imgProc"] += sw.ElapsedMilliseconds;
-            sw.Reset();
+                sw.Start();
+                Parallel.ForEach(amsv1Data,
+                                 new ParallelOptions { MaxDegreeOfParallelism = 4 },
+                                 n => PatchSourceImportData(n, !_zmkFirms.Contains(n.FirmId)));
+                sw.Stop();
+                Stats.Collector["imgProc"] += sw.ElapsedMilliseconds;
+                sw.Reset();
 
-            return amsv1Data;
+                return amsv1Data;
+            }
+            catch (Exception ex)
+            {
+                if (retryAttempt > _options.QueueTriesCount)
+                {
+                    _logger.Fatal(ex, "[FETCHING_FAIL] Unable to fetch batch from AMS 1.0 {batch}", string.Join(", ", part));
+                    throw;
+                }
+
+                _logger.Error(ex, "[FETCHING_FAIL] An exception occurred while fetching batch from AMS 1.0. Attempt: {retryAttempt}", retryAttempt);
+                _fetchingQueue.Enqueue((part, retryAttempt));
+                _currentBatchCounter--;
+
+                return Enumerable.Empty<Amsv1MaterialData>().ToArray();
+            }
         }
 
-        private async Task<List<OrderMaterialBindingData>> RunImportWorker(Amsv1MaterialData[] amsv1Data)
+        private async Task<List<MaterialCreationResult>> RunImportWorker(Amsv1MaterialData[] amsv1Data)
         {
             var sw = new Stopwatch();
 
-            var orderBindingDataList = new List<OrderMaterialBindingData>();
+            var orderBindingDataList = new List<MaterialCreationResult>();
 
             sw.Start();
             if (_options.ParallelImportEnabled)
@@ -281,7 +338,7 @@ namespace AmsMigrator
             return orderBindingDataList;
         }
 
-        private async Task RunBindingWorker(List<OrderMaterialBindingData> orderBindingDataList)
+        private async Task RunBindingWorker(IEnumerable<MaterialCreationResult> orderBindingDataList)
         {
             var sw = new Stopwatch();
             sw.Start();
@@ -295,74 +352,99 @@ namespace AmsMigrator
             sw.Reset();
         }
 
-        private void PatchSourceImportData(Amsv1MaterialData amsv1Data)
+        private void PatchSourceImportData(Amsv1MaterialData amsv1Data, bool isBackgroundFillingNeeded)
         {
-            var (data, ext) = ImageProcessor.FillImageBackground(amsv1Data.ImageDataOriginal, amsv1Data.BackgroundColor);
+            var (data, ext) = ImageProcessor.FillImageBackground(amsv1Data.ImageData, isBackgroundFillingNeeded ? amsv1Data.BackgroundColor : null);
             amsv1Data.ImageData = data;
+
             amsv1Data.ImageExt = ext ?? amsv1Data.ImageExt;
         }
 
-        private async Task<List<OrderMaterialBindingData>> PerformImportForSingleData(Amsv1MaterialData data)
+        private async Task<IEnumerable<MaterialCreationResult>> PerformImportForSingleData(Amsv1MaterialData data)
         {
             try
             {
-                var bindingDataList = new List<OrderMaterialBindingData>();
-                _logger.Information("Starting to import AMS 1.0 material with uuid: {uuid}", data.Uuid);
+                _logger.Information("Starting to import AMS 1.0 material with uuid: {uuid}, firm: {firmId}", data.Uuid, data.FirmId);
                 _logger.Information("Processing logo image: {image}", data);
 
-                if (_options.Targets.HasFlag(ImportTarget.Logotypes) && !data.ReachedTarget.HasFlag(ImportTarget.Logotypes))
+                if (!data.ReachedTarget.HasFlag(ImportTarget.CompanyLogotypes))
                 {
                     var logoImportStrategy = _container.GetService<CompanyLogoImportStrategy>();
 
-                    var bindingData = await logoImportStrategy.ExecuteAsync(data);
-                    if (bindingData != null)
+                    var creationResult = await logoImportStrategy.ExecuteAsync(data);
+                    if (creationResult != null)
                     {
-                        bindingDataList.Add(bindingData);
-
-                        data.Complete(ImportTarget.Logotypes);
-
-                        Interlocked.Increment(ref _processedLogoCounter);
+                        data.MaterialCreationData[ImportTarget.CompanyLogotypes] = creationResult;
                     }
+
+                    data.CompleteCreation(ImportTarget.CompanyLogotypes);
+
+                    Interlocked.Increment(ref _processedLogoCounter);
                 }
 
-                if (_options.Targets.HasFlag(ImportTarget.ZmkBrending) &&
-                    data.HasSizeSpecificImages &&
-                    _zmkFirms.Contains(data.FirmId) &&
-                    !data.ReachedTarget.HasFlag(ImportTarget.ZmkBrending))
+                if (!data.ModerationCompletedTarget.HasFlag(ImportTarget.CompanyLogotypes))
                 {
-                    var zmkStrategy = _container.GetService<ZmkLogoImportStrategy>();
+                    await SetModerationStatus(data, data.MaterialCreationData[ImportTarget.CompanyLogotypes]);
 
-                    var bindingData = await zmkStrategy.ExecuteAsync(data);
-                    if (bindingData != null)
+                    data.CompleteModeration(ImportTarget.CompanyLogotypes);
+                }
+
+                if (data.HasSizeSpecificImages && _zmkFirms.Contains(data.FirmId))
+                {
+                    if (!data.ReachedTarget.HasFlag(ImportTarget.ZmkBrendingLogotypes))
                     {
-                        bindingDataList.Add(bindingData);
+                        var zmkStrategy = _container.GetService<ZmkLogoImportStrategy>();
 
-                        data.Complete(ImportTarget.ZmkBrending);
+                        var creationResult = await zmkStrategy.ExecuteAsync(data);
+                        if (creationResult != null)
+                        {
+                            data.MaterialCreationData[ImportTarget.ZmkBrendingLogotypes] = creationResult;
+                        }
+
+                        data.CompleteCreation(ImportTarget.ZmkBrendingLogotypes);
 
                         Interlocked.Increment(ref _processedZmkCounter);
                     }
+
+                    if (!data.ModerationCompletedTarget.HasFlag(ImportTarget.ZmkBrendingLogotypes))
+                    {
+                        await SetModerationStatus(data, data.MaterialCreationData[ImportTarget.ZmkBrendingLogotypes]);
+
+                        data.CompleteModeration(ImportTarget.ZmkBrendingLogotypes);
+                    }
                 }
 
-                if (_options.Targets.HasFlag(ImportTarget.KbLogotypes) && _kbFirms.Contains(data.FirmId) && !data.ReachedTarget.HasFlag(ImportTarget.KbLogotypes))
+                if (_kbFirms.Contains(data.FirmId))
                 {
-                    var kbLogoStrategy = _container.GetService<KBLogoImportStrategy>();
-
-                    var bindingData = await kbLogoStrategy.ExecuteAsync(data);
-                    if (bindingData != null)
+                    if (!data.ReachedTarget.HasFlag(ImportTarget.KbLogotypes))
                     {
-                        bindingDataList.Add(bindingData);
+                        var kbLogoStrategy = _container.GetService<KBLogoImportStrategy>();
 
-                        data.Complete(ImportTarget.KbLogotypes);
+                        var creationResult = await kbLogoStrategy.ExecuteAsync(data);
+                        if (creationResult != null)
+                        {
+                            data.MaterialCreationData[ImportTarget.KbLogotypes] = creationResult;
+                        }
+
+                        data.CompleteCreation(ImportTarget.KbLogotypes);
 
                         Interlocked.Increment(ref _processedKbCounter);
+                    }
+
+                    if (!data.ModerationCompletedTarget.HasFlag(ImportTarget.KbLogotypes))
+                    {
+                        await SetModerationStatus(data, data.MaterialCreationData[ImportTarget.KbLogotypes]);
+
+                        data.CompleteModeration(ImportTarget.KbLogotypes);
                     }
                 }
 
                 Interlocked.Increment(ref _processedAdCounter);
+                Interlocked.Increment(ref _speedEstimatingCounter);
 
                 _logger.Information("[IMPORT_SUCCESS] AMS 1.0 material with uuid: {uuid} {firmid} has been imported successfully", data.Uuid, data.FirmId);
 
-                return bindingDataList;
+                return data.MaterialCreationData.Values;
             }
             catch
             {
@@ -374,10 +456,31 @@ namespace AmsMigrator
                 }
                 else
                 {
-                    _logger.Warning("[SKIP_AD_IMPORT] Skip to process advertisement {uuid} {firmid} due to irresistible problem.", data.Uuid, data.FirmId);
+                    _logger.Error("[SKIP_AD_IMPORT] Skip to process advertisement {uuid} {firmid} due to irresistible problem.", data.Uuid, data.FirmId);
                 }
-                return new List<OrderMaterialBindingData>();
+                return new List<MaterialCreationResult>();
             }
+        }
+
+        private async Task SetModerationStatus(Amsv1MaterialData amsv1Data, MaterialCreationResult creationResult)
+        {
+            if (IsMigrationNeededForMaterial(amsv1Data))
+            {
+                _logger.Information("Migrating moderation info for material {stubId} version {versionId} started", creationResult.MaterialId, creationResult.VersionId);
+                await _okapiClient.SetModerationState(creationResult.MaterialId, creationResult.VersionId, amsv1Data);
+                _logger.Information("Migrating moderation info for material {stubId} version {versionId} completed", creationResult.MaterialId, creationResult.VersionId);
+            }
+        }
+
+        private bool IsMigrationNeededForMaterial(Amsv1MaterialData amsv1Data)
+        {
+            return _options.StatusesForMigration.Any(s => s.Name.Equals(amsv1Data.ModerationState) && s.MigrationNeeded);
+        }
+
+        private void ReportMigrationPace(object obj)
+        {
+            _logger.Information("[SPEED] Current migration pace: {pace:0.00} ad/s", _speedEstimatingCounter / 60d);
+            _speedEstimatingCounter = 0;
         }
 
         private void DumpDeferredQueue()

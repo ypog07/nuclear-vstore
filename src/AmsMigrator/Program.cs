@@ -18,11 +18,14 @@ using AmsMigrator.CLI;
 using AmsMigrator.Infrastructure;
 
 using Serilog.Context;
+using Serilog.Sinks.LogstashHttp;
 
 namespace AmsMigrator
 {
     class Program
     {
+        private const string LogstashUri = "http://logstash.erm.2gis.ru:8195";
+
         private static readonly IReadOnlyDictionary<string, (Language DefaultLang, int CountryCode, bool MigrateModerationStatuses)> InstanceMap = new Dictionary<string, (Language, int, bool)>
         {
             { "ErmRu", (Language.Ru, 1, true) },
@@ -109,10 +112,17 @@ namespace AmsMigrator
 
             IServiceProvider sp = services.BuildServiceProvider();
             services.AddSingleton(sp);
-            
+
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(Configuration)
-                .CreateLogger();
+                         .ReadFrom.Configuration(Configuration)
+                         .WriteTo.Logger(x => x.WriteTo.LogstashHttp(LogstashUri)
+                                               .MinimumLevel.Error()
+                                               .Enrich.WithProperty("Environment", "LogoMigration"))
+                         .WriteTo.Logger(x => x.WriteTo.LogstashHttp(LogstashUri)
+                                               .Filter.ByIncludingOnly(n => n.MessageTemplate.Text.Contains("[PROGRESS]")
+                                                                            || n.MessageTemplate.Text.Contains("[SPEED]"))
+                                               .Enrich.WithProperty("Environment", "LogoMigration"))
+                         .CreateLogger();
 
             Log.Logger.Information("Configuration values: {settings}", JsonConvert.SerializeObject(opt));
 
@@ -151,9 +161,13 @@ namespace AmsMigrator
 
                 Log.Logger.Information("Start import from {instance} in mode: {mode}", instance.Key, opt.Targets.ToString());
 
-                var p = new Progress<double>(n => Log.Logger.Information("Instance {instance}: {n:0.00}% processed.", instance.Key, n));
                 using (LogContext.PushProperty("InstanceKey", instance.Key))
                 {
+                    var p = new Progress<double>(n => Log.Logger.Information("[PROGRESS] Instance {instance}: {n:0} batches processed of {totalBatches}.",
+                                                                             instance.Key,
+                                                                             n,
+                                                                             importer.TotalBatchesCount));
+
                     var imported = await importer.StartImportAsync(p);
                     Stats.Collector[instance.Key] = imported;
                 }
@@ -163,9 +177,10 @@ namespace AmsMigrator
             {
                 if (kvp.Key.StartsWith("Erm"))
                 {
-                    Log.Logger.Information("{0} materials processed from instance: {1}", kvp.Value, kvp.Key);
+                    Log.Logger.Information("{0} materials imported from instance: {1}", kvp.Value, kvp.Key);
                 }
             }
+            Log.Logger.Information("Total materials imported from all instances: {total}", Stats.Collector.Where(kv => kv.Key.StartsWith("Erm")).Sum(kv => kv.Value));
             sw.Stop();
 
             Log.Logger.Information("Overall migration execution time {time}", sw.Elapsed);

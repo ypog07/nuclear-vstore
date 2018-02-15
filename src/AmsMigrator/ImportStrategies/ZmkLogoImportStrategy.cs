@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using AmsMigrator.DTO.Okapi;
 using AmsMigrator.Models;
@@ -35,7 +36,7 @@ namespace AmsMigrator.ImportStrategies
             var materialId = advMaterialStub.Id;
 
             string fileName = $"{amsv1Data.ImageName}.{amsv1Data.ImageExt}";
-            var uploadHash = await _okapiClient.UploadFileAsync(materialId, new Uri(uploadUrl), fileName, amsv1Data.ImageDataOriginal);
+            var uploadHash = await _okapiClient.UploadFileAsync(materialId, new Uri(uploadUrl), fileName, amsv1Data.ImageData);
 
             logoElement.Value.Raw = uploadHash.Raw;
 
@@ -48,11 +49,15 @@ namespace AmsMigrator.ImportStrategies
             bgColorElement.Value.Raw = amsv1Data.BackgroundColor;
 
             // custom images
-            var uploadTasks = amsv1Data.SizeSpecificImages.Select(c => CreateCustomImageAsync(materialId, new Uri(uploadUrl), c));
+            var customImages = new List<SizeSpecificImage>();
 
-            var customImages = await Task.WhenAll(uploadTasks);
+            foreach (var c in amsv1Data.SizeSpecificImages)
+            {
+                var img = await CreateCustomImageAsync(materialId, new Uri(uploadUrl), c);
+                customImages.Add(img);
+            }
 
-            logoElement.Value.SizeSpecificImages = customImages;
+            logoElement.Value.SizeSpecificImages = customImages.ToArray();
 
             advMaterialStub.Properties.Name = "logo_zmk";
         }

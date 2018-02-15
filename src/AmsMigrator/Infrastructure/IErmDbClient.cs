@@ -6,7 +6,7 @@ namespace AmsMigrator.Infrastructure
 {
     public interface IErmDbClient
     {
-        Task<int> BindMaterialToOrderAsync(List<OrderMaterialBindingData> orderBindindData);
+        Task<int> BindMaterialToOrderAsync(IEnumerable<MaterialCreationResult> orderBindindData);
         Task<List<long>> GetAdvertiserFirmIdsAsync(DateTime sinceDate);
         List<long> GetFirmIdsForGivenPositions(DateTime sinceDate, long[] nomenclatureIds);
     }

@@ -29,9 +29,15 @@ namespace AmsMigrator
         {
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.ConnectionClose = true;
             client.Timeout = TimeSpan.FromSeconds(timeout);
 
             return client;
+        }
+
+        public static bool ContainsElementOfHashset(this IEnumerable<long> source, HashSet<long> set)
+        {
+            return source.Any(set.Contains);
         }
     }
 }
