@@ -278,6 +278,7 @@ namespace NuClear.VStore.Objects
                         };
                 case ElementDescriptorType.BitmapImage:
                 case ElementDescriptorType.VectorImage:
+                case ElementDescriptorType.ScalableBitmapImage:
                 case ElementDescriptorType.Article:
                 case ElementDescriptorType.Phone:
                     return new ValidationRule[] { };
@@ -438,6 +439,7 @@ namespace NuClear.VStore.Objects
                     case ElementDescriptorType.Phone:
                     case ElementDescriptorType.Color:
                     case ElementDescriptorType.CompositeBitmapImage:
+                    case ElementDescriptorType.ScalableBitmapImage:
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(descriptor.Type),

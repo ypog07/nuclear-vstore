@@ -13,6 +13,8 @@ namespace NuClear.VStore.Sessions.ContentValidation
 {
     public static class BitmapImageValidator
     {
+        private const decimal AspectRatioEpsilon = 0.1M;
+
         private static readonly IReadOnlyDictionary<FileFormat, string> ImageFormatToMimeTypeMap =
             new Dictionary<FileFormat, string>
                 {
@@ -30,6 +32,26 @@ namespace NuClear.VStore.Sessions.ContentValidation
             if (constraints.SupportedImageSizes.All(x => imageInfo.Width != x.Width || imageInfo.Height != x.Height))
             {
                 throw new InvalidBinaryException(templateCode, new ImageUnsupportedSizeError(new ImageSize { Height = imageInfo.Height, Width = imageInfo.Width }));
+            }
+        }
+
+        public static void ValidateScalableBitmapImageHeader(int templateCode, ScalableBitmapImageElementConstraints constraints, FileFormat fileFormat, Stream inputStream)
+        {
+            var imageInfo = ValidateBitmapImageFormat(templateCode, constraints, fileFormat, inputStream);
+
+            var imageSize = new ImageSize { Width = imageInfo.Width, Height = imageInfo.Height };
+            if (!constraints.ImageSizeRange.Includes(imageSize))
+            {
+                throw new InvalidBinaryException(templateCode, new ImageSizeOutOfRangeError(imageSize));
+            }
+
+            if (constraints.ImageAspectRatio.HasValue)
+            {
+                var aspectRatio = imageInfo.Width / (decimal)imageInfo.Height;
+                if (Math.Abs(constraints.ImageAspectRatio.Value - aspectRatio) < AspectRatioEpsilon)
+                {
+                    throw new InvalidBinaryException(templateCode, new ImageUnsupportedAspectRatioError(aspectRatio));
+                }
             }
         }
 

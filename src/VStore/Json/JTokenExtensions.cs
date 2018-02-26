@@ -36,6 +36,8 @@ namespace NuClear.VStore.Json
                     value.SizeSpecificImages = value.SizeSpecificImages ?? Enumerable.Empty<SizeSpecificImage>();
                     return value;
                 }
+                case ElementDescriptorType.ScalableBitmapImage:
+                    return valueToken.ToObject<BitmapImageElementValue>();
                 default:
                     return null;
             }

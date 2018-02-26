@@ -83,6 +83,9 @@ namespace NuClear.VStore.Json
                     case ElementDescriptorType.CompositeBitmapImage:
                         constraints = property.Value.ToObject<CompositeBitmapImageElementConstraints>();
                         break;
+                    case ElementDescriptorType.ScalableBitmapImage:
+                        constraints = property.Value.ToObject<ScalableBitmapImageElementConstraints>();
+                        break;
                     default:
                         return null;
                 }

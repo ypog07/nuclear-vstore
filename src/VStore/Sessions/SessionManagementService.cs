@@ -319,6 +319,9 @@ namespace NuClear.VStore.Sessions
                 case ElementDescriptorType.BitmapImage:
                     BitmapImageValidator.ValidateBitmapImageHeader(templateCode, (BitmapImageElementConstraints)elementConstraints, fileFormat, inputStream);
                     break;
+                case ElementDescriptorType.ScalableBitmapImage:
+                    BitmapImageValidator.ValidateScalableBitmapImageHeader(templateCode, (ScalableBitmapImageElementConstraints)elementConstraints, fileFormat, inputStream);
+                    break;
                 case ElementDescriptorType.CompositeBitmapImage:
                     if (uploadedFileMetadata.FileType == FileType.SizeSpecificBitmapImage)
                     {
@@ -378,6 +381,8 @@ namespace NuClear.VStore.Sessions
                     ArticleValidator.ValidateArticle(templateCode, inputStream);
                     break;
                 case ElementDescriptorType.CompositeBitmapImage:
+                    break;
+                case ElementDescriptorType.ScalableBitmapImage:
                     break;
                 case ElementDescriptorType.PlainText:
                 case ElementDescriptorType.FormattedText:

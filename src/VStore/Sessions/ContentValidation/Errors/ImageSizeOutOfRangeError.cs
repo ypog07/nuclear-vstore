@@ -15,7 +15,7 @@ namespace NuClear.VStore.Sessions.ContentValidation.Errors
 
         public ImageSize ImageSize { get; }
 
-        public override string ErrorType => nameof(CompositeBitmapImageElementConstraints.ImageSizeRange);
+        public override string ErrorType => nameof(ISizeRangeImageElementConstraints.ImageSizeRange);
 
         public override JToken SerializeToJson()
         {
