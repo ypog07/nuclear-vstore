@@ -60,6 +60,24 @@ namespace NuClear.VStore.ImageRendering
             return await GetPngEncodedPreview(imageElementValue, templateCode, width, height, null);
         }
 
+        public async Task<(Stream imageStream, string contentType)> GetScaledPreview(
+            IImageElementValue imageElementValue,
+            int templateCode,
+            int dimensionSize)
+        {
+            var cts = new CancellationTokenSource(_requestTimeout);
+            var rawStream = await GetRawStream(imageElementValue, cts.Token);
+
+            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+
+            using (var source = Decode(templateCode, rawStream, out var imageFormat))
+            {
+                Resize(source, new Size(dimensionSize, dimensionSize), ResizeMode.Max);
+                var targetStream = Encode(source, imageFormat);
+                return (targetStream, imageFormat.DefaultMimeType);
+            }
+        }
+
         [Obsolete]
         public async Task<(Stream imageStream, string contentType)> GetRoundedPreview(
             IImageElementValue imageElementValue,
@@ -89,7 +107,7 @@ namespace NuClear.VStore.ImageRendering
 
             EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
-            using (var source = Decode(templateCode, rawStream))
+            using (var source = Decode(templateCode, rawStream, out _))
             {
                 using (var target = Crop(source, imageElementValue))
                 {
@@ -103,7 +121,7 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-        private static Image<Rgba32> Decode(int templateCode, Stream sourceStream)
+        private static Image<Rgba32> Decode(int templateCode, Stream sourceStream, out IImageFormat imageFormat)
         {
             using (sourceStream)
             {
@@ -111,7 +129,7 @@ namespace NuClear.VStore.ImageRendering
                 try
                 {
                     sourceStream.Position = 0;
-                    image = Image.Load(sourceStream);
+                    image = Image.Load(sourceStream, out imageFormat);
                 }
                 catch
                 {
@@ -196,13 +214,13 @@ namespace NuClear.VStore.ImageRendering
             return extentImage;
         }
 
-        private static void Resize(Image<Rgba32> image, Size size)
+        private static void Resize(Image<Rgba32> image, Size size, ResizeMode resizeMode = ResizeMode.Stretch)
         {
             image.Mutate(ctx => ctx.Resize(new ResizeOptions
                 {
                     Size = size,
                     Sampler = new Lanczos2Resampler(),
-                    Mode = ResizeMode.Stretch
+                    Mode = resizeMode
                 }));
         }
 

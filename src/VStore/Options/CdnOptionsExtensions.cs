@@ -6,6 +6,7 @@ namespace NuClear.VStore.Options
     {
         private const string CdnRawsUriPrefix = "raws";
         private const string CdnPreviewsUriPrefix = "previews";
+        private const string CdnScaleUriPrefix = "scale";
 
         public static Uri AsRawUri(this CdnOptions options, string fileKey)
         {
@@ -15,6 +16,11 @@ namespace NuClear.VStore.Options
         public static Uri AsPreviewUri(this CdnOptions options, long objectId, string versionId, long templateCode)
         {
             return new Uri(options.CdnUrl, $"{CdnPreviewsUriPrefix}/{objectId}/{versionId}/{templateCode}/image.png");
+        }
+
+        public static Uri AsScaleUri(this CdnOptions options, long objectId, string versionId, long templateCode)
+        {
+            return new Uri(options.CdnUrl, $"{CdnScaleUriPrefix}/{objectId}/{versionId}/{templateCode}/");
         }
     }
 }

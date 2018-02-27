@@ -363,7 +363,9 @@ namespace NuClear.VStore.Objects
 
                     break;
                 case IImageElementValue imageElementValue:
-                    imageElementValue.PreviewUri = _cdnOptions.AsRawUri(imageElementValue.Raw);
+                    imageElementValue.PreviewUri = objectElementDescriptor.Type == ElementDescriptorType.ScalableBitmapImage
+                                                       ? _cdnOptions.AsScaleUri(id, versionId, objectElementDescriptor.TemplateCode)
+                                                       : _cdnOptions.AsRawUri(imageElementValue.Raw);
                     break;
             }
         }
