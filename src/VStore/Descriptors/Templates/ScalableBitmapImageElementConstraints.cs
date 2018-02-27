@@ -21,7 +21,7 @@ namespace NuClear.VStore.Descriptors.Templates
         public bool ValidImage => true;
         public bool ExtensionMatchContentFormat => true;
 
-        public decimal? ImageAspectRatio { get; set; }
+        public ImageAspectRatio? ImageAspectRatio { get; set; }
 
         #region Equality members
 

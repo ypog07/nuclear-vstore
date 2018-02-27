@@ -47,8 +47,8 @@ namespace NuClear.VStore.Sessions.ContentValidation
 
             if (constraints.ImageAspectRatio.HasValue)
             {
-                var aspectRatio = imageInfo.Width / (decimal)imageInfo.Height;
-                if (Math.Abs(constraints.ImageAspectRatio.Value - aspectRatio) > AspectRatioEpsilon)
+                var aspectRatio = new ImageAspectRatio{ RatioWidth = imageInfo.Width, RatioHeight = imageInfo.Height};
+                if (Math.Abs((decimal)constraints.ImageAspectRatio.Value - (decimal)aspectRatio) > AspectRatioEpsilon)
                 {
                     throw new InvalidBinaryException(templateCode, new ImageUnsupportedAspectRatioError(aspectRatio));
                 }

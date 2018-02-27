@@ -310,7 +310,8 @@ namespace NuClear.VStore.Templates
                 throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidImageSizeRange);
             }
 
-            if (constraints.ImageAspectRatio <= 0)
+            if (constraints.ImageAspectRatio.HasValue &&
+                (constraints.ImageAspectRatio.Value.RatioWidth < 1 || constraints.ImageAspectRatio.Value.RatioHeight < 1))
             {
                 throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidAspectRatio);
             }
