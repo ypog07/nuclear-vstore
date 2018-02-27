@@ -13,7 +13,7 @@ namespace NuClear.VStore.Sessions.ContentValidation
 {
     public static class BitmapImageValidator
     {
-        private const decimal AspectRatioEpsilon = 0.1M;
+        private const decimal AspectRatioEpsilon = 0.01M;
 
         private static readonly IReadOnlyDictionary<FileFormat, string> ImageFormatToMimeTypeMap =
             new Dictionary<FileFormat, string>
@@ -48,7 +48,7 @@ namespace NuClear.VStore.Sessions.ContentValidation
             if (constraints.ImageAspectRatio.HasValue)
             {
                 var aspectRatio = imageInfo.Width / (decimal)imageInfo.Height;
-                if (Math.Abs(constraints.ImageAspectRatio.Value - aspectRatio) < AspectRatioEpsilon)
+                if (Math.Abs(constraints.ImageAspectRatio.Value - aspectRatio) > AspectRatioEpsilon)
                 {
                     throw new InvalidBinaryException(templateCode, new ImageUnsupportedAspectRatioError(aspectRatio));
                 }
