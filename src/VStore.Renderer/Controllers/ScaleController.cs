@@ -33,28 +33,60 @@ namespace NuClear.VStore.Renderer.Controllers
             _imagePreviewService = imagePreviewService;
         }
 
-        [HttpGet("{id:long}/{versionId}/{templateCode:int}/{width:int?}x{height:int?}")]
+        [HttpGet("{id:long}/{versionId}/{templateCode:int}/x{height:int}")]
         [ProducesResponseType(typeof(byte[]), 200)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(typeof(object), 422)]
         [ProducesResponseType(429)]
-        public async Task<IActionResult> Get(long id, string versionId, int templateCode, int? width, int? height)
+        public async Task<IActionResult> GetByHeight(long id, string versionId, int templateCode, int height)
+        {
+            if (height < 1)
+            {
+                return BadRequest("Incorrect height");
+            }
+
+            return await GetInternal(id, versionId, templateCode, height);
+        }
+
+        [HttpGet("{id:long}/{versionId}/{templateCode:int}/{width:int}x")]
+        [ProducesResponseType(typeof(byte[]), 200)]
+        [ProducesResponseType(typeof(string), 400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(429)]
+        public async Task<IActionResult> GetByWidth(long id, string versionId, int templateCode, int width)
+        {
+            if (width < 1)
+            {
+                return BadRequest("Incorrect width");
+            }
+
+            return await GetInternal(id, versionId, templateCode, width);
+        }
+
+        [HttpGet("{id:long}/{versionId}/{templateCode:int}/{width:int}x{height:int}")]
+        [ProducesResponseType(typeof(byte[]), 200)]
+        [ProducesResponseType(typeof(string), 400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(429)]
+        public async Task<IActionResult> Get(long id, string versionId, int templateCode, int width, int height)
         {
             if (width < 1 || height < 1)
             {
                 return BadRequest("Incorrect width or height");
             }
 
-            if (!width.HasValue && !height.HasValue)
-            {
-                return BadRequest("Both width and height are not specified");
-            }
+            return await GetInternal(id, versionId, templateCode, Math.Max(height, width));
+        }
 
+        private async Task<IActionResult> GetInternal(long id, string versionId, int templateCode, int sideLength)
+        {
             try
             {
                 var imageElementValue = await _objectsStorageReader.GetImageElementValue(id, versionId, templateCode);
-                var (imageStream, contentType) = await _imagePreviewService.GetScaledPreview(imageElementValue, templateCode, width ?? height.Value);
+                var (imageStream, contentType) = await _imagePreviewService.GetScaledPreview(imageElementValue, templateCode, sideLength);
                 return new FileStreamResult(imageStream, contentType);
             }
             catch (ObjectNotFoundException)
