@@ -12,8 +12,7 @@ namespace NuClear.VStore.Sessions.ContentValidation.Errors
 
         public ImageUnsupportedAspectRatioError(ImageAspectRatio actualAspectRatio)
         {
-            ActualAspectRatio = actualAspectRatio;
-            ActualAspectRatio.Normalize();
+            ActualAspectRatio = actualAspectRatio.GetNormalized();
         }
 
         public override string ErrorType => nameof(ScalableBitmapImageElementConstraints.ImageAspectRatio);

@@ -36,14 +36,17 @@ namespace NuClear.VStore.Descriptors
             return $"{RatioWidth}:{RatioHeight}";
         }
 
-        public void Normalize()
+        public ImageAspectRatio GetNormalized()
         {
+            var normalized = new ImageAspectRatio { RatioWidth = RatioWidth, RatioHeight = RatioHeight };
             var gcd = FindGreatestCommonDivisor(RatioWidth, RatioHeight);
             if (gcd > 1)
             {
-                RatioWidth /= gcd;
-                RatioHeight /= gcd;
+                normalized.RatioWidth /= gcd;
+                normalized.RatioHeight /= gcd;
             }
+
+            return normalized;
         }
 
         public static explicit operator decimal(ImageAspectRatio aspectRatio)
