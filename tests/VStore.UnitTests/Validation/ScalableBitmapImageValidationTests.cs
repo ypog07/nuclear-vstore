@@ -88,31 +88,41 @@ namespace VStore.UnitTests.Validation
         }
 
         [Theory]
-        [InlineData(5, 5, 1.0)]
-        [InlineData(5, 10, 0.5)]
-        [InlineData(10, 5, 2.0)]
-        [InlineData(7, 3, 2.33)]
-        public void ValidImageAspectRatio(int width, int height, decimal aspectRatio)
+        [InlineData(5, 5, 1, 1)]
+        [InlineData(5, 10, 1, 2)]
+        [InlineData(10, 5, 2, 1)]
+        [InlineData(7, 3, 7, 3)]
+        public void ValidImageAspectRatio(int width, int height, int aspectRatioWidth, int aspectRatioHeight)
         {
             const FileFormat PngFormat = FileFormat.Png;
             using (var image = TestHelpers.CreateImage(width, height, new PngEncoder()))
             {
-                var constraints = CreateConstraints(width, height, width, height, PngFormat, aspectRatio);
+                var constraints = CreateConstraints(width,
+                                                    height,
+                                                    width,
+                                                    height,
+                                                    PngFormat,
+                                                    new ImageAspectRatio { RatioWidth = aspectRatioWidth, RatioHeight = aspectRatioHeight });
                 BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, PngFormat, image);
             }
         }
 
         [Theory]
-        [InlineData(5, 5, 1.1)]
-        [InlineData(5, 10, -1.0)]
-        [InlineData(10, 5, 1.9)]
-        [InlineData(7, 3, 2.45)]
-        public void InvalidImageAspectRatio(int width, int height, decimal aspectRatio)
+        [InlineData(5, 5, 11, 10)]
+        [InlineData(5, 10, -1, 1)]
+        [InlineData(10, 5, 19, 10)]
+        [InlineData(7, 3, 245, 100)]
+        public void InvalidImageAspectRatio(int width, int height, int aspectRatioWidth, int aspectRatioHeight)
         {
             const FileFormat GifFormat = FileFormat.Gif;
             using (var image = TestHelpers.CreateImage(width, height, new GifEncoder()))
             {
-                var constraints = CreateConstraints(width, height, width, height, GifFormat, aspectRatio);
+                var constraints = CreateConstraints(width,
+                                                    height,
+                                                    width,
+                                                    height,
+                                                    GifFormat,
+                                                    new ImageAspectRatio { RatioWidth = aspectRatioWidth, RatioHeight = aspectRatioHeight });
 
                 var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, GifFormat, image));
                 Assert.IsType<ImageUnsupportedAspectRatioError>(ex.Error);
@@ -124,7 +134,7 @@ namespace VStore.UnitTests.Validation
                                                                                int maxWidth,
                                                                                int maxHeight,
                                                                                FileFormat format,
-                                                                               decimal? aspectRatio = null) =>
+                                                                               ImageAspectRatio? aspectRatio = null) =>
             new ScalableBitmapImageElementConstraints
                 {
                     ImageSizeRange = new ImageSizeRange
