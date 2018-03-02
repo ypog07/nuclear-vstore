@@ -166,6 +166,11 @@ namespace NuClear.VStore.Host
                                     Type = "apiKey"
                                 });
 
+                        options.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
+                            {
+                                { "Bearer", new string[] { } }
+                            });
+
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
                     });
