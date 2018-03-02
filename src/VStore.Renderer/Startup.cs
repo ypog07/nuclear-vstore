@@ -176,6 +176,18 @@ namespace NuClear.VStore.Renderer
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            app.UseMiddleware<HealthCheckMiddleware>();
+            app.UsePrometheusServer(
+                new PrometheusOptions
+                    {
+                        Collectors = new List<IOnDemandCollector>
+                            {
+                                new DotNetStatsCollector(),
+                                new DotNetMemoryStatsCollector(),
+                                new WindowsDotNetStatsCollector()
+                            }
+                    });
+            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             if (!env.IsProduction())
             {
                 app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
@@ -204,20 +216,7 @@ namespace NuClear.VStore.Renderer
                                     await context.Response.WriteAsync(new JObject(new JProperty("error", error)).ToString());
                                 }
                     });
-            app.UseMiddleware<HealthCheckMiddleware>();
-            app.UsePrometheusServer(
-                new PrometheusOptions
-                    {
-                        Collectors = new List<IOnDemandCollector>
-                            {
-                                new DotNetStatsCollector(),
-                                new DotNetMemoryStatsCollector(),
-                                new WindowsDotNetStatsCollector()
-                            }
-                    });
-            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
-
             app.UseMvc();
 
             if (!env.IsProduction())

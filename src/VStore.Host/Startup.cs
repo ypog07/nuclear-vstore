@@ -298,6 +298,14 @@ namespace NuClear.VStore.Host
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            app.UseMiddleware<HealthCheckMiddleware>();
+            app.UsePrometheusServer(
+                new PrometheusOptions
+                    {
+                        Collectors = new List<IOnDemandCollector> { new DotNetStatsCollector(), new WindowsDotNetStatsCollector() }
+                    });
+            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
+
             if (!env.IsProduction())
             {
                 app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
@@ -326,17 +334,8 @@ namespace NuClear.VStore.Host
                                     await context.Response.WriteAsync(new JObject(new JProperty("error", error)).ToString());
                                 }
                     });
-            app.UseMiddleware<HealthCheckMiddleware>();
-            app.UsePrometheusServer(
-                new PrometheusOptions
-                    {
-                        Collectors = new List<IOnDemandCollector> { new DotNetStatsCollector(), new WindowsDotNetStatsCollector() }
-                    });
-            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
-
             app.UseAuthentication();
-
             app.UseMvc();
 
             if (!env.IsProduction())
