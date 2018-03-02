@@ -176,6 +176,11 @@ namespace NuClear.VStore.Renderer
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            if (!env.IsProduction())
+            {
+                app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
+            }
+
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
                     {

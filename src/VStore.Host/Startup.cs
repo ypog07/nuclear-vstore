@@ -298,6 +298,11 @@ namespace NuClear.VStore.Host
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            if (!env.IsProduction())
+            {
+                app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
+            }
+
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
                     {
@@ -306,11 +311,11 @@ namespace NuClear.VStore.Host
                                 {
                                     var feature = context.Features.Get<IExceptionHandlerFeature>();
                                     var error = new JObject
-                                                    {
-                                                        { "requestId", context.TraceIdentifier },
-                                                        { "code", "unhandledException" },
-                                                        { "message", feature.Error.Message }
-                                                    };
+                                        {
+                                            { "requestId", context.TraceIdentifier },
+                                            { "code", "unhandledException" },
+                                            { "message", feature.Error.Message }
+                                        };
 
                                     if (env.IsDevelopment())
                                     {
