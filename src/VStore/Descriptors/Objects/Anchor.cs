@@ -8,7 +8,7 @@
         Left,
         Middle,
         Right,
-        BottonLeft,
+        BottomLeft,
         Bottom,
         BottomRight
     }
