@@ -28,7 +28,7 @@ namespace VStore.UnitTests.Validation
             using (var image = TestHelpers.CreateImage(width, height, encoder))
             {
                 var constraints = CreateConstraints(1, 1, 10, 10, format);
-                BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, format, image);
+                BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, format, image);
             }
         }
 
@@ -50,7 +50,7 @@ namespace VStore.UnitTests.Validation
             {
                 var constraints = CreateConstraints(1, 1, 10, 10, expectedFormat);
 
-                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, actualFormat, image));
+                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, actualFormat, image));
                 Assert.IsType<BinaryInvalidFormatError>(ex.Error);
             }
         }
@@ -66,7 +66,7 @@ namespace VStore.UnitTests.Validation
             using (var image = TestHelpers.CreateImage(width, height, new PngEncoder()))
             {
                 var constraints = CreateConstraints(minWidth, minHeight, maxWidth, maxHeight, PngFormat);
-                BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, PngFormat, image);
+                BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, PngFormat, image);
             }
         }
 
@@ -82,50 +82,8 @@ namespace VStore.UnitTests.Validation
             {
                 var constraints = CreateConstraints(minWidth, minHeight, maxWidth, maxHeight, GifFormat);
 
-                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, GifFormat, image));
+                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, GifFormat, image));
                 Assert.IsType<ImageSizeOutOfRangeError>(ex.Error);
-            }
-        }
-
-        [Theory]
-        [InlineData(5, 5, 1, 1)]
-        [InlineData(5, 10, 1, 2)]
-        [InlineData(10, 5, 2, 1)]
-        [InlineData(7, 3, 7, 3)]
-        public void ValidImageAspectRatio(int width, int height, int aspectRatioWidth, int aspectRatioHeight)
-        {
-            const FileFormat PngFormat = FileFormat.Png;
-            using (var image = TestHelpers.CreateImage(width, height, new PngEncoder()))
-            {
-                var constraints = CreateConstraints(width,
-                                                    height,
-                                                    width,
-                                                    height,
-                                                    PngFormat,
-                                                    new ImageAspectRatio { RatioWidth = aspectRatioWidth, RatioHeight = aspectRatioHeight });
-                BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, PngFormat, image);
-            }
-        }
-
-        [Theory]
-        [InlineData(5, 5, 11, 10)]
-        [InlineData(5, 10, -1, 1)]
-        [InlineData(10, 5, 19, 10)]
-        [InlineData(7, 3, 245, 100)]
-        public void InvalidImageAspectRatio(int width, int height, int aspectRatioWidth, int aspectRatioHeight)
-        {
-            const FileFormat GifFormat = FileFormat.Gif;
-            using (var image = TestHelpers.CreateImage(width, height, new GifEncoder()))
-            {
-                var constraints = CreateConstraints(width,
-                                                    height,
-                                                    width,
-                                                    height,
-                                                    GifFormat,
-                                                    new ImageAspectRatio { RatioWidth = aspectRatioWidth, RatioHeight = aspectRatioHeight });
-
-                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateScalableBitmapImageHeader(1, constraints, GifFormat, image));
-                Assert.IsType<ImageUnsupportedAspectRatioError>(ex.Error);
             }
         }
 
@@ -133,8 +91,7 @@ namespace VStore.UnitTests.Validation
                                                                                int minHeight,
                                                                                int maxWidth,
                                                                                int maxHeight,
-                                                                               FileFormat format,
-                                                                               ImageAspectRatio? aspectRatio = null) =>
+                                                                               FileFormat format) =>
             new ScalableBitmapImageElementConstraints
                 {
                     ImageSizeRange = new ImageSizeRange
@@ -143,7 +100,6 @@ namespace VStore.UnitTests.Validation
                             Max = new ImageSize { Height = maxHeight, Width = maxWidth }
                         },
                     SupportedFileFormats = new[] { format },
-                    ImageAspectRatio = aspectRatio
                 };
     }
 }

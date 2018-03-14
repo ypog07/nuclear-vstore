@@ -33,11 +33,15 @@ namespace NuClear.VStore.Json
                 case ElementDescriptorType.CompositeBitmapImage:
                 {
                     var value = valueToken.ToObject<CompositeBitmapImageElementValue>();
-                    value.SizeSpecificImages = value.SizeSpecificImages ?? Enumerable.Empty<SizeSpecificImage>();
+                    if (value.SizeSpecificImages == null)
+                    {
+                        value.SizeSpecificImages = Enumerable.Empty<SizeSpecificImage>();
+                    }
+
                     return value;
                 }
                 case ElementDescriptorType.ScalableBitmapImage:
-                    return valueToken.ToObject<BitmapImageElementValue>();
+                    return valueToken.ToObject<ScalableBitmapImageElementValue>();
                 default:
                     return null;
             }

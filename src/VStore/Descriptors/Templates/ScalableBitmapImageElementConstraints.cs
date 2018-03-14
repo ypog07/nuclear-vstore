@@ -4,10 +4,9 @@ using System.Linq;
 
 namespace NuClear.VStore.Descriptors.Templates
 {
-    public class ScalableBitmapImageElementConstraints :
-        IBinaryElementConstraints,
+    public sealed class ScalableBitmapImageElementConstraints :
         IBinaryFormatConstraints,
-        ISizeRangeImageElementConstraints,
+        ISizeRangedImageElementConstraints,
         IImageElementConstraints,
         IEquatable<ScalableBitmapImageElementConstraints>
     {
@@ -17,25 +16,25 @@ namespace NuClear.VStore.Descriptors.Templates
         public int? MaxFilenameLength { get; set; }
         public IReadOnlyCollection<FileFormat> SupportedFileFormats { get; set; }
         public bool BinaryExists => true;
-
         public bool ValidImage => true;
         public bool ExtensionMatchContentFormat => true;
-
-        public ImageAspectRatio? ImageAspectRatio { get; set; }
-
-        #region Equality members
 
         public bool Equals(ScalableBitmapImageElementConstraints other)
         {
             if (other is null)
+            {
                 return false;
+            }
+
             if (ReferenceEquals(this, other))
+            {
                 return true;
+            }
+
             return ImageSizeRange.Equals(other.ImageSizeRange) &&
                    BinaryExists == other.BinaryExists &&
                    ValidImage == other.ValidImage &&
                    MaxSize == other.MaxSize &&
-                   ImageAspectRatio == other.ImageAspectRatio &&
                    MaxFilenameLength == other.MaxFilenameLength &&
                    (ReferenceEquals(SupportedFileFormats, other.SupportedFileFormats) ||
                     SupportedFileFormats.SequenceEqual(other.SupportedFileFormats));
@@ -51,13 +50,10 @@ namespace NuClear.VStore.Descriptors.Templates
                 hashCode = (hashCode * 397) ^ BinaryExists.GetHashCode();
                 hashCode = (hashCode * 397) ^ ValidImage.GetHashCode();
                 hashCode = (hashCode * 397) ^ ExtensionMatchContentFormat.GetHashCode();
-                hashCode = (hashCode * 397) ^ ImageAspectRatio.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaxSize.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaxFilenameLength.GetHashCode();
                 return hashCode;
             }
         }
-
-        #endregion
     }
 }
