@@ -26,7 +26,7 @@ namespace VStore.UnitTests.Validation
             {
                 var constraints = CreateConstraints(1, 1, 10, 10, format);
 
-                BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(1, constraints, format, image);
+                BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, format, image);
             }
         }
 
@@ -48,7 +48,7 @@ namespace VStore.UnitTests.Validation
             {
                 var constraints = CreateConstraints(1, 1, 10, 10, expectedFormat);
 
-                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(1, constraints, actualFormat, image));
+                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, actualFormat, image));
                 Assert.IsType<BinaryInvalidFormatError>(ex.Error);
             }
         }
@@ -65,7 +65,7 @@ namespace VStore.UnitTests.Validation
                 const FileFormat PngFormat = FileFormat.Png;
                 var constraints = CreateConstraints(minWidth, minHeight, maxWidth, maxHeight, PngFormat);
 
-                BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(1, constraints, PngFormat, image);
+                BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, PngFormat, image);
             }
         }
 
@@ -81,7 +81,7 @@ namespace VStore.UnitTests.Validation
                 const FileFormat GifFormat = FileFormat.Gif;
                 var constraints = CreateConstraints(minWidth, minHeight, maxWidth, maxHeight, GifFormat);
 
-                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(1, constraints, GifFormat, image));
+                var ex = Assert.Throws<InvalidBinaryException>(() => BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(1, constraints, GifFormat, image));
                 Assert.IsType<ImageSizeOutOfRangeError>(ex.Error);
             }
         }

@@ -166,6 +166,11 @@ namespace NuClear.VStore.Host
                                     Type = "apiKey"
                                 });
 
+                        options.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
+                            {
+                                { "Bearer", new string[] { } }
+                            });
+
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
                     });
@@ -291,7 +296,7 @@ namespace NuClear.VStore.Host
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
                    .SingleInstance();
-            builder.RegisterType<EventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();
         }
 

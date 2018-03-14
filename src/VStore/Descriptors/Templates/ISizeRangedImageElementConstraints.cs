@@ -1,6 +1,6 @@
 ﻿namespace NuClear.VStore.Descriptors.Templates
 {
-    public interface ISizeRangeImageElementConstraints
+    public interface ISizeRangedImageElementConstraints : IBinaryElementConstraints
     {
         ImageSizeRange ImageSizeRange { get; }
     }

@@ -5,10 +5,9 @@ using System.Linq;
 namespace NuClear.VStore.Descriptors.Templates
 {
     public sealed class CompositeBitmapImageElementConstraints :
-        IBinaryElementConstraints,
         IBinaryFormatConstraints,
-        ISizeRangeImageElementConstraints,
         IImageElementConstraints,
+        ISizeRangedImageElementConstraints,
         IEquatable<CompositeBitmapImageElementConstraints>
     {
         public ImageSizeRange ImageSizeRange { get; set; }
@@ -26,14 +25,18 @@ namespace NuClear.VStore.Descriptors.Templates
         public bool ValidImage => true;
         public bool ExtensionMatchContentFormat => true;
 
-        #region Equality members
-
         public bool Equals(CompositeBitmapImageElementConstraints other)
         {
             if (other is null)
+            {
                 return false;
+            }
+
             if (ReferenceEquals(this, other))
+            {
                 return true;
+            }
+
             return ImageSizeRange.Equals(other.ImageSizeRange) &&
                    SizeSpecificImageMaxSize == other.SizeSpecificImageMaxSize &&
                    MaxSize == other.MaxSize &&
@@ -61,7 +64,5 @@ namespace NuClear.VStore.Descriptors.Templates
                 return hashCode;
             }
         }
-
-        #endregion
     }
 }
