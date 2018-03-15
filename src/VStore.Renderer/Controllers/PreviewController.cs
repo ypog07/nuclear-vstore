@@ -46,7 +46,7 @@ namespace NuClear.VStore.Renderer.Controllers
         [ProducesResponseType(404)]
         [ProducesResponseType(typeof(object), 422)]
         [ProducesResponseType(429)]
-        public async Task<IActionResult> Get(long id, string versionId, int templateCode, int width, int height)
+        public async Task<IActionResult> GetCompositeImagePreview(long id, string versionId, int templateCode, int width, int height)
         {
             if (width < 1 || height < 1)
             {
@@ -61,7 +61,7 @@ namespace NuClear.VStore.Renderer.Controllers
                     return Redirect(_rawFileStorageInfoProvider.GetRawFileUrl(rawValue));
                 }
 
-                var (imageStream, contentType) = await _imagePreviewService.GetPreview(imageElementValue, templateCode, width, height);
+                var (imageStream, contentType) = await _imagePreviewService.GetCroppedPreview(imageElementValue, templateCode, width, height);
                 return new FileStreamResult(imageStream, contentType);
             }
             catch (ObjectNotFoundException)
@@ -94,7 +94,7 @@ namespace NuClear.VStore.Renderer.Controllers
         [ProducesResponseType(404)]
         [ProducesResponseType(typeof(object), 422)]
         [ProducesResponseType(429)]
-        public async Task<IActionResult> GetV10(long id, string versionId, int templateCode, int width, int height)
+        public async Task<IActionResult> GetCompositeImagePreviewV10(long id, string versionId, int templateCode, int width, int height)
         {
             if (width < 1 || height < 1)
             {
@@ -109,7 +109,48 @@ namespace NuClear.VStore.Renderer.Controllers
                     return Redirect(_rawFileStorageInfoProvider.GetRawFileUrl(rawValue));
                 }
 
-                var (imageStream, contentType) = await _imagePreviewService.GetRoundedPreview(imageElementValue, templateCode, width, height);
+                var (imageStream, contentType) = await _imagePreviewService.GetCroppedAndRoundedPreview(imageElementValue, templateCode, width, height);
+                return new FileStreamResult(imageStream, contentType);
+            }
+            catch (ObjectNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                return TooManyRequests(_retryAfter);
+            }
+            catch (MemoryLimitedException)
+            {
+                return TooManyRequests(_retryAfter);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidBinaryException ex)
+            {
+                return Unprocessable(GenerateErrorJsonResult(ex));
+            }
+        }
+
+        [HttpGet("{id:long}/{versionId}/{templateCode:int}/{width:int}x{height:int}")]
+        [ProducesResponseType(typeof(byte[]), 200)]
+        [ProducesResponseType(typeof(string), 400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(429)]
+        public async Task<IActionResult> GetScaledImagePreview(long id, string versionId, int templateCode, int width, int height)
+        {
+            if (width < 1 || height < 1)
+            {
+                return BadRequest("Incorrect width or height");
+            }
+
+            try
+            {
+                var imageElementValue = await _objectsStorageReader.GetImageElementValue(id, versionId, templateCode);
+                var (imageStream, contentType) = await _imagePreviewService.GetScaledPreview(imageElementValue, templateCode, width, height);
                 return new FileStreamResult(imageStream, contentType);
             }
             catch (ObjectNotFoundException)
