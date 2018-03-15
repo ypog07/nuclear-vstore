@@ -31,6 +31,7 @@ using Newtonsoft.Json.Serialization;
 
 using NuClear.VStore.Host.Options;
 using NuClear.VStore.Http;
+using NuClear.VStore.Http.Core.Filters;
 using NuClear.VStore.Http.Core.Json;
 using NuClear.VStore.Http.Core.Middleware;
 using NuClear.VStore.Http.Core.Routing;
@@ -64,6 +65,7 @@ namespace NuClear.VStore.Host
 
         private static readonly JsonConverter[] CustomConverters =
             {
+                new AnchorJsonConverter(),
                 new StringEnumConverter { CamelCaseText = true },
                 new Int64ToStringJsonConverter(),
                 new ElementDescriptorJsonConverter(),

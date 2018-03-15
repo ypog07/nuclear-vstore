@@ -96,7 +96,6 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-
         private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
             IImageElementValue imageElementValue,
             int templateCode,
