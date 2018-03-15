@@ -89,12 +89,7 @@ namespace NuClear.VStore.ImageRendering
             using (var source = Decode(templateCode, rawStream, out var imageFormat))
             {
                 var anchorPosition = EvaluateAnchorPosition(imageElementValue);
-                var targetAspectRatio = width / (float)height;
-                Resize(source,
-                       targetAspectRatio >= 1
-                           ? new Size(width, (int)(width / targetAspectRatio))
-                           : new Size((int)(height * targetAspectRatio), height),
-                       anchorPosition);
+                Resize(source, new Size(width, height), anchorPosition);
 
                 var targetStream = Encode(source, imageFormat);
                 return (targetStream, imageFormat.DefaultMimeType);
