@@ -10,7 +10,6 @@ namespace NuClear.VStore.Json
     {
         private static readonly JsonConverter[] CustonConverters =
             {
-                new AnchorJsonConverter(),
                 new StringEnumConverter { CamelCaseText = true },
                 new ElementDescriptorJsonConverter(),
                 new ElementDescriptorCollectionJsonConverter(),
