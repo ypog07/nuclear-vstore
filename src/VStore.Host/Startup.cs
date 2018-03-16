@@ -65,7 +65,6 @@ namespace NuClear.VStore.Host
 
         private static readonly JsonConverter[] CustomConverters =
             {
-                new AnchorJsonConverter(),
                 new StringEnumConverter { CamelCaseText = true },
                 new Int64ToStringJsonConverter(),
                 new ElementDescriptorJsonConverter(),
