@@ -8,18 +8,9 @@ using NuClear.VStore.Descriptors.Templates;
 
 namespace NuClear.VStore.Json
 {
-    public sealed class ObjectElementDescriptorJsonConverter : JsonConverter
+    public sealed class ObjectElementDescriptorJsonConverter : JsonConverter<ObjectElementDescriptor>
     {
-        public override bool CanWrite => false;
-
-        public override bool CanConvert(Type objectType) => typeof(ObjectElementDescriptor) == objectType;
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override ObjectElementDescriptor ReadJson(JsonReader reader, Type objectType, ObjectElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             var json = JObject.Load(reader);
 
@@ -46,6 +37,14 @@ namespace NuClear.VStore.Json
                     Constraints = elementDescriptor.Constraints,
                     Value = value
                 };
+        }
+
+        public override void WriteJson(JsonWriter writer, ObjectElementDescriptor value, JsonSerializer serializer)
+        {
+            serializer.Converters.Remove(this);
+
+            value.NormalizeValue();
+            serializer.Serialize(writer, value);
         }
     }
 }
