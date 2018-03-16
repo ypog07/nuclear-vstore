@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using NuClear.VStore.Descriptors.Objects;
@@ -43,7 +44,7 @@ namespace NuClear.VStore.Json
                 case ElementDescriptorType.ScalableBitmapImage:
                     return valueToken.ToObject<ScalableBitmapImageElementValue>();
                 default:
-                    return null;
+                    throw new JsonSerializationException($"Unknown element type '{elementDescriptorType.ToString()}'");
             }
         }
     }
