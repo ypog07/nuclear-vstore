@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using NuClear.VStore.Descriptors.Objects;
@@ -55,7 +56,7 @@ namespace NuClear.VStore.Json
                     return value;
                 }
                 default:
-                    return null;
+                    throw new JsonSerializationException($"Unknown element type '{elementDescriptorType.ToString()}'");
             }
         }
 

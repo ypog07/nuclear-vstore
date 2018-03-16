@@ -12,18 +12,40 @@ namespace NuClear.VStore.Json
     {
         public override ObjectElementDescriptor ReadJson(JsonReader reader, Type objectType, ObjectElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            var json = JObject.Load(reader);
+            JObject json;
+            try
+            {
+                json = JObject.Load(reader);
+            }
+            catch (JsonReaderException ex)
+            {
+                throw new JsonSerializationException("Object element descriptor is not a valid JSON", ex);
+            }
 
-            var valueToken = json[Tokens.ValueToken];
-            var elementDescriptor = json.ToObject<IElementDescriptor>(serializer);
-
-            var id = json[Tokens.IdToken].ToObject<long>();
+            var idToken = json[Tokens.IdToken];
+            if (idToken == null)
+            {
+                throw new JsonSerializationException($"Some element has no '{Tokens.IdToken}' property.");
+            }
 
             var versionId = string.Empty;
             var versionIdToken = json.SelectToken(Tokens.VersionIdToken);
             if (versionIdToken != null)
             {
                 versionId = versionIdToken.ToObject<string>();
+            }
+
+            var id = idToken.ToObject<long>();
+            var valueToken = json[Tokens.ValueToken];
+            if (valueToken == null)
+            {
+                throw new JsonSerializationException($"Element with id '{id}' has no '{Tokens.ValueToken}' property.");
+            }
+
+            var elementDescriptor = json.ToObject<IElementDescriptor>(serializer);
+            if (elementDescriptor == null)
+            {
+                throw new JsonSerializationException($"Element with id '{id}' has incorrect descriptor.");
             }
 
             var value = valueToken.AsObjectElementValue(elementDescriptor.Type);

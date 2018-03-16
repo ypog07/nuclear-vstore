@@ -249,9 +249,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (templateDescriptor == null)
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest("Template descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
@@ -297,9 +297,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (templateDescriptor == null)
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest("Template descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
