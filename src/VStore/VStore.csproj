@@ -5,25 +5,25 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.3.16.2" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.0.0" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.4" />
     <PackageReference Include="2GIS.ChmLibCore" Version="1.0.3" />
+    <PackageReference Include="AWSSDK.S3" Version="3.3.17.2" />
     <PackageReference Include="Confluent.Kafka" Version="0.11.3" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.6.13" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
-    <PackageReference Include="RedLock.net" Version="2.0.0-pre2-fixed" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.7.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
+    <PackageReference Include="Prometheus.Client" Version="1.4.1" />
+    <PackageReference Include="RedLock.net" Version="2.0.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-denisivan0v-descrease-maxarraysperbucket000046" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-denisivan0v-descrease-maxarraysperbucket000046" />
     <PackageReference Include="System.Net.NameResolution" Version="4.3.0" />
-    <PackageReference Include="Prometheus.Client" Version="1.4.0" />
     <PackageReference Include="System.Reactive.Linq" Version="3.1.1" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
     <PackageReference Include="System.Threading.ThreadPool" Version="4.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.1" />
   </ItemGroup>
 </Project>

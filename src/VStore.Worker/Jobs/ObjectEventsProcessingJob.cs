@@ -32,7 +32,7 @@ namespace NuClear.VStore.Worker.Jobs
 
         private readonly ILogger<ObjectEventsProcessingJob> _logger;
         private readonly ObjectsStorageReader _objectsStorageReader;
-        private readonly EventSender _eventSender;
+        private readonly IEventSender _eventSender;
         private readonly EventReceiver _versionEventReceiver;
         private readonly EventReceiver _binariesEventReceiver;
 
@@ -42,7 +42,7 @@ namespace NuClear.VStore.Worker.Jobs
             ILogger<ObjectEventsProcessingJob> logger,
             ObjectsStorageReader objectsStorageReader,
             KafkaOptions kafkaOptions,
-            EventSender eventSender)
+            IEventSender eventSender)
         {
             _objectVersionsTopic = kafkaOptions.ObjectVersionsTopic;
             _binariesUsingsTopic = kafkaOptions.BinariesReferencesTopic;
