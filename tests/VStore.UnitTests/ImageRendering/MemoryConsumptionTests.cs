@@ -10,7 +10,7 @@ namespace VStore.UnitTests.ImageRendering
     public sealed class MemoryConsumptionTests
     {
         [Fact]
-        public void ShouldBeAllocatedLessThan80Mb()
+        public void ShouldBeAllocatedLessThen80Mb()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
             const double MemoryLowerBound = MemoryForPixels - MemoryForPixels * 0.05;
@@ -30,7 +30,7 @@ namespace VStore.UnitTests.ImageRendering
         }
 
         [Fact]
-        public void ShouldBeAllocatedLessThan160Mb()
+        public void ShouldBeAllocatedLessThen160Mb()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
             const double MemoryLowerBound = 2 * (MemoryForPixels - MemoryForPixels * 0.05);
@@ -53,7 +53,7 @@ namespace VStore.UnitTests.ImageRendering
         }
 
         [Fact]
-        public void ShouldBeAllocatedLessThan4Mb()
+        public void ShouldBeAllocatedLessThen4Mb()
         {
             const int RentedMemory = 1024 * 1024 * 4;
             const int LoadCount = 10;
@@ -105,7 +105,7 @@ namespace VStore.UnitTests.ImageRendering
         }
 
         [Fact]
-        public void ShouldBeAllocatedLessThan4MbNested()
+        public void ShouldBeAllocatedLessThen4MbNested()
         {
             const int RentedMemory = 1024 * 1024 * 4;
             const int LoadCount = 10;
@@ -140,7 +140,7 @@ namespace VStore.UnitTests.ImageRendering
         }
 
         [Fact]
-        public void ShouldBeAllocatedLessThan84MbNested()
+        public void ShouldBeAllocatedLessThen84MbNested()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
             const int RentedMemory = 1024 * 1024 * 4;
@@ -176,7 +176,7 @@ namespace VStore.UnitTests.ImageRendering
         }
 
         [Fact]
-        public void ShouldBeAllocatedLessThan164MbNested()
+        public void ShouldBeAllocatedLessThen164MbNested()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
             const int RentedMemory = 1024 * 1024 * 4;

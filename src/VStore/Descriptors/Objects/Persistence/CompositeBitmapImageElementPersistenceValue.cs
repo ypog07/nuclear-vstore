@@ -22,10 +22,10 @@ namespace NuClear.VStore.Descriptors.Objects.Persistence
         public string Filename { get; }
         public long? Filesize { get; }
 
-        public CropArea CropArea { get; }
-        public IEnumerable<SizeSpecificImage> SizeSpecificImages { get; }
+        public CropArea CropArea { get; set; }
+        public IEnumerable<SizeSpecificImage> SizeSpecificImages { get; set; }
 
-        public sealed class SizeSpecificImage
+        public class SizeSpecificImage
         {
             public ImageSize Size { get; set; }
             public string Raw { get; set; }

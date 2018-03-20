@@ -390,7 +390,6 @@ namespace CloningTool.CloneStrategies
                 case ElementDescriptorType.VectorImage:
                 case ElementDescriptorType.Article:
                 case ElementDescriptorType.CompositeBitmapImage:
-                case ElementDescriptorType.ScalableBitmapImage:
                     return true;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(elementDescriptorType), elementDescriptorType, "Unknown advertisement's element type");
