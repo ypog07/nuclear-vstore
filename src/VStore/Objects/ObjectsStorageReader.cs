@@ -355,12 +355,15 @@ namespace NuClear.VStore.Objects
             switch (binaryElementValue)
             {
                 case ICompositeBitmapImageElementValue compositeBitmapImageElementValue:
-                    compositeBitmapImageElementValue.PreviewUri = _cdnOptions.AsPreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
+                    compositeBitmapImageElementValue.PreviewUri = _cdnOptions.AsCompositePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
                     foreach (var image in compositeBitmapImageElementValue.SizeSpecificImages)
                     {
                         image.DownloadUri = _cdnOptions.AsRawUri(image.Raw);
                     }
 
+                    break;
+                case IScalableBitmapImageElementValue scalableBitmapImageElementValue:
+                    scalableBitmapImageElementValue.PreviewUri = _cdnOptions.AsScalablePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
                     break;
                 case IImageElementValue imageElementValue:
                     imageElementValue.PreviewUri = _cdnOptions.AsRawUri(imageElementValue.Raw);
