@@ -227,9 +227,10 @@ namespace NuClear.VStore.Renderer
                                 options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName.ToUpperInvariant());
                             }
 
-                            options.DocExpansion("list");
-                            options.EnabledValidator();
-                            options.ShowRequestHeaders();
+                            options.DocExpansion(DocExpansion.List);
+                            options.EnableValidator();
+                            options.ShowExtensions();
+                            options.DisplayRequestDuration();
                         });
             }
         }

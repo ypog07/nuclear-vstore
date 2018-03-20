@@ -31,6 +31,7 @@ using Newtonsoft.Json.Serialization;
 
 using NuClear.VStore.Host.Options;
 using NuClear.VStore.Http;
+using NuClear.VStore.Http.Core.Filters;
 using NuClear.VStore.Http.Core.Json;
 using NuClear.VStore.Http.Core.Middleware;
 using NuClear.VStore.Http.Core.Routing;
@@ -166,6 +167,11 @@ namespace NuClear.VStore.Host
                                     Type = "apiKey"
                                 });
 
+                        options.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
+                            {
+                                { "Bearer", new string[] { } }
+                            });
+
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
                     });
@@ -291,7 +297,7 @@ namespace NuClear.VStore.Host
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
                    .SingleInstance();
-            builder.RegisterType<EventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();
         }
 
@@ -346,9 +352,10 @@ namespace NuClear.VStore.Host
                                 options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName.ToUpperInvariant());
                             }
 
-                            options.DocExpansion("list");
-                            options.EnabledValidator();
-                            options.ShowRequestHeaders();
+                            options.DocExpansion(DocExpansion.None);
+                            options.EnableValidator();
+                            options.ShowExtensions();
+                            options.DisplayRequestDuration();
                         });
             }
         }
