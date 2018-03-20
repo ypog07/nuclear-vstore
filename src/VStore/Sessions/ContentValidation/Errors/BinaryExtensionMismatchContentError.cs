@@ -17,7 +17,7 @@ namespace NuClear.VStore.Sessions.ContentValidation.Errors
 
         public string ContentFormat { get; }
 
-        public override string ErrorType => nameof(IBinaryFormatConstraints.ExtensionMatchContentFormat);
+        public override string ErrorType => nameof(BitmapImageElementConstraints.ExtensionMatchContentFormat);
 
         public override JToken SerializeToJson()
         {

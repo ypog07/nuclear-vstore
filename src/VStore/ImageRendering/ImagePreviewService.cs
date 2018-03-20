@@ -75,6 +75,7 @@ namespace NuClear.VStore.ImageRendering
                        target => ApplyRoundedCorners(target, target.Height * 0.5f));
         }
 
+
         private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
             IImageElementValue imageElementValue,
             int templateCode,

@@ -23,15 +23,12 @@ namespace CloningTool.Json
                 objectElementDescriptor.Constraints);
 
             var json = JObject.FromObject(elementDescriptor, serializer);
-            json[Tokens.IdToken] = objectElementDescriptor.Id;
-
-            objectElementDescriptor.NormalizeValue();
             json[Tokens.ValueToken] = JToken.FromObject(objectElementDescriptor.Value, serializer);
+            json[Tokens.IdToken] = objectElementDescriptor.Id;
 
             var versionedObjectElementDescriptor = (IVersionedObjectElementDescriptor)value;
             json[Tokens.VersionIdToken] = versionedObjectElementDescriptor.VersionId;
             json["lastModified"] = versionedObjectElementDescriptor.LastModified;
-
             json.WriteTo(writer);
         }
 
@@ -43,6 +40,7 @@ namespace CloningTool.Json
             var elementDescriptor = json.ToObject<IElementDescriptor>(serializer);
 
             var value = valueToken.AsObjectElementValue(elementDescriptor.Type);
+
             return new ApiObjectElementDescriptor
             {
                 Id = json.Value<long>(Tokens.IdToken),

@@ -25,22 +25,8 @@ namespace NuClear.VStore.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            JObject obj;
-            try
-            {
-                obj = JObject.Load(reader);
-            }
-            catch (JsonReaderException ex)
-            {
-                throw new JsonSerializationException("Template descriptor is not a valid JSON", ex);
-            }
-
+            var obj = JObject.Load(reader);
             var descriptors = obj[Tokens.ElementsToken];
-            if (descriptors == null)
-            {
-                throw new JsonSerializationException($"Template descriptor doesn't contain '{Tokens.ElementsToken}' token");
-            }
-
             var elementDescriptors = descriptors.ToObject<IReadOnlyCollection<IElementDescriptor>>(serializer);
 
             obj.Remove(Tokens.ElementsToken);
