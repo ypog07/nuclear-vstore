@@ -172,7 +172,7 @@ namespace NuClear.VStore.Worker
 
             builder.RegisterType<MemoryCache>().As<IMemoryCache>().SingleInstance();
 
-            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().SingleInstance();
 
             builder.RegisterType<JobRegistry>().SingleInstance();
             builder.RegisterType<JobRunner>().SingleInstance();

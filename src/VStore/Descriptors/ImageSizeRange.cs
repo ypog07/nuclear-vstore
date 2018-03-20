@@ -19,11 +19,8 @@ namespace NuClear.VStore.Descriptors
 
         public override bool Equals(object obj)
         {
-            if (obj is null)
-            {
+            if (ReferenceEquals(null, obj))
                 return false;
-            }
-
             return obj is ImageSizeRange range && Equals(range);
         }
 

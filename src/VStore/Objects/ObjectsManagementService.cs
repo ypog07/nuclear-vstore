@@ -41,7 +41,7 @@ namespace NuClear.VStore.Objects
         private readonly ObjectsStorageReader _objectsStorageReader;
         private readonly SessionStorageReader _sessionStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
-        private readonly IEventSender _eventSender;
+        private readonly EventSender _eventSender;
         private readonly string _bucketName;
         private readonly string _objectEventsTopic;
         private readonly Counter _referencedBinariesMetric;
@@ -54,7 +54,7 @@ namespace NuClear.VStore.Objects
             ObjectsStorageReader objectsStorageReader,
             SessionStorageReader sessionStorageReader,
             DistributedLockManager distributedLockManager,
-            IEventSender eventSender,
+            EventSender eventSender,
             MetricsProvider metricsProvider)
         {
             _s3Client = s3Client;
@@ -278,7 +278,6 @@ namespace NuClear.VStore.Objects
                         };
                 case ElementDescriptorType.BitmapImage:
                 case ElementDescriptorType.VectorImage:
-                case ElementDescriptorType.ScalableBitmapImage:
                 case ElementDescriptorType.Article:
                 case ElementDescriptorType.Phone:
                     return new ValidationRule[] { };
@@ -291,16 +290,15 @@ namespace NuClear.VStore.Objects
             }
         }
 
-        private async Task<string> PutObject(
-            long id,
-            string versionId,
-            AuthorInfo authorInfo,
-            IEnumerable<IObjectElementDescriptor> currentObjectElements,
-            IObjectDescriptor objectDescriptor)
+        private async Task<string> PutObject(long id,
+                                             string versionId,
+                                             AuthorInfo authorInfo,
+                                             IEnumerable<IObjectElementDescriptor> existingObjectElements,
+                                             IObjectDescriptor objectDescriptor)
         {
             PreprocessObjectElements(objectDescriptor.Elements);
             await VerifyObjectElementsConsistency(id, objectDescriptor.Language, objectDescriptor.Elements);
-            var metadataForBinaries = await RetrieveMetadataForBinaries(id, currentObjectElements, objectDescriptor.Elements);
+            var metadataForBinaries = await RetrieveMetadataForBinaries(id, existingObjectElements, objectDescriptor.Elements);
 
             await _eventSender.SendAsync(_objectEventsTopic, new ObjectVersionCreatingEvent(id, versionId));
 
@@ -381,45 +379,34 @@ namespace NuClear.VStore.Objects
                 return (BinaryElementPersistenceValue.Empty, 0);
             }
 
-            var metadata = metadataForBinaries[binaryElementValue.Raw];
-            switch (binaryElementValue)
+            if (binaryElementValue is ICompositeBitmapImageElementValue compositeBitmapImageElementValue)
             {
-                case ICompositeBitmapImageElementValue compositeBitmapImageElementValue:
-                {
-                    var sizeSpecificImages =
-                        compositeBitmapImageElementValue.SizeSpecificImages
-                                                        .Select(image =>
-                                                                    {
-                                                                        var imageMetadata = metadataForBinaries[image.Raw];
-                                                                        return new CompositeBitmapImageElementPersistenceValue.SizeSpecificImage
-                                                                            {
-                                                                                Filename = imageMetadata.Filename,
-                                                                                Filesize = imageMetadata.Filesize,
-                                                                                Raw = image.Raw,
-                                                                                Size = image.Size
-                                                                            };
-                                                                    })
-                                                        .ToList();
-                    var persistenceValue = new CompositeBitmapImageElementPersistenceValue(
-                        compositeBitmapImageElementValue.Raw,
-                        metadata.Filename,
-                        metadata.Filesize,
-                        compositeBitmapImageElementValue.CropArea,
-                        sizeSpecificImages);
-                    return (persistenceValue, sizeSpecificImages.Count + 1);
-                }
-                case IScalableBitmapImageElementValue scalableBitmapImageElementValue:
-                {
-                    var persistenceValue = new ScalableBitmapImageElementPersistenceValue(
-                        scalableBitmapImageElementValue.Raw,
-                        metadata.Filename,
-                        metadata.Filesize,
-                        scalableBitmapImageElementValue.Anchor);
-                    return (persistenceValue, 1);
-                }
-                default:
-                    return (new BinaryElementPersistenceValue(binaryElementValue.Raw, metadata.Filename, metadata.Filesize), 1);
+                var originalMetadata = metadataForBinaries[binaryElementValue.Raw];
+                var sizeSpecificImages =
+                    compositeBitmapImageElementValue.SizeSpecificImages
+                                                    .Select(image =>
+                                                                {
+                                                                    var imageMetadata = metadataForBinaries[image.Raw];
+                                                                    return new CompositeBitmapImageElementPersistenceValue.SizeSpecificImage
+                                                                        {
+                                                                            Filename = imageMetadata.Filename,
+                                                                            Filesize = imageMetadata.Filesize,
+                                                                            Raw = image.Raw,
+                                                                            Size = image.Size
+                                                                        };
+                                                                })
+                                                    .ToList();
+                var persistenceValue = new CompositeBitmapImageElementPersistenceValue(
+                    compositeBitmapImageElementValue.Raw,
+                    originalMetadata.Filename,
+                    originalMetadata.Filesize,
+                    compositeBitmapImageElementValue.CropArea,
+                    sizeSpecificImages);
+                return (persistenceValue, sizeSpecificImages.Count + 1);
             }
+
+            var metadata = metadataForBinaries[binaryElementValue.Raw];
+            return (new BinaryElementPersistenceValue(binaryElementValue.Raw, metadata.Filename, metadata.Filesize), 1);
         }
 
         private void PreprocessObjectElements(IEnumerable<IObjectElementDescriptor> elementDescriptors)
@@ -451,7 +438,6 @@ namespace NuClear.VStore.Objects
                     case ElementDescriptorType.Phone:
                     case ElementDescriptorType.Color:
                     case ElementDescriptorType.CompositeBitmapImage:
-                    case ElementDescriptorType.ScalableBitmapImage:
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(descriptor.Type),
@@ -461,10 +447,9 @@ namespace NuClear.VStore.Objects
             }
         }
 
-        private async Task<IReadOnlyDictionary<string, BinaryMetadata>> RetrieveMetadataForBinaries(
-            long id,
-            IEnumerable<IObjectElementDescriptor> existingObjectElements,
-            IEnumerable<IObjectElementDescriptor> objectElements)
+        private async Task<IReadOnlyDictionary<string, BinaryMetadata>> RetrieveMetadataForBinaries(long id,
+                                                                                                    IEnumerable<IObjectElementDescriptor> existingObjectElements,
+                                                                                                    IEnumerable<IObjectElementDescriptor> objectElements)
         {
             var existingFileKeys = new HashSet<string>(existingObjectElements.SelectMany(x => x.Value.ExtractFileKeys()));
 

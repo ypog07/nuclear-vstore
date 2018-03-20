@@ -5,9 +5,8 @@ using System.Linq;
 namespace NuClear.VStore.Descriptors.Templates
 {
     public sealed class CompositeBitmapImageElementConstraints :
-        IBinaryFormatConstraints,
+        IBinaryElementConstraints,
         IImageElementConstraints,
-        ISizeRangedImageElementConstraints,
         IEquatable<CompositeBitmapImageElementConstraints>
     {
         public ImageSizeRange ImageSizeRange { get; set; }
@@ -23,29 +22,19 @@ namespace NuClear.VStore.Descriptors.Templates
 
         public bool BinaryExists => true;
         public bool ValidImage => true;
-        public bool ExtensionMatchContentFormat => true;
+
+        #region Equality members
 
         public bool Equals(CompositeBitmapImageElementConstraints other)
         {
-            if (other is null)
-            {
+            if (ReferenceEquals(null, other))
                 return false;
-            }
-
             if (ReferenceEquals(this, other))
-            {
                 return true;
-            }
-
-            return ImageSizeRange.Equals(other.ImageSizeRange) &&
-                   SizeSpecificImageMaxSize == other.SizeSpecificImageMaxSize &&
-                   MaxSize == other.MaxSize &&
-                   MaxFilenameLength == other.MaxFilenameLength &&
-                   BinaryExists == other.BinaryExists &&
-                   ValidImage == other.ValidImage &&
-                   ExtensionMatchContentFormat == other.ExtensionMatchContentFormat &&
-                   (ReferenceEquals(SupportedFileFormats, other.SupportedFileFormats) ||
-                    SupportedFileFormats.SequenceEqual(other.SupportedFileFormats));
+            return ImageSizeRange.Equals(other.ImageSizeRange) && SizeSpecificImageMaxSize == other.SizeSpecificImageMaxSize
+                                                               && MaxSize == other.MaxSize && MaxFilenameLength == other.MaxFilenameLength &&
+                                                               (ReferenceEquals(SupportedFileFormats, other.SupportedFileFormats) ||
+                                                                SupportedFileFormats.SequenceEqual(other.SupportedFileFormats));
         }
 
         public override bool Equals(object obj) => Equals(obj as CompositeBitmapImageElementConstraints);
@@ -55,14 +44,13 @@ namespace NuClear.VStore.Descriptors.Templates
             unchecked
             {
                 var hashCode = ImageSizeRange.GetHashCode();
-                hashCode = (hashCode * 397) ^ BinaryExists.GetHashCode();
-                hashCode = (hashCode * 397) ^ ValidImage.GetHashCode();
-                hashCode = (hashCode * 397) ^ ExtensionMatchContentFormat.GetHashCode();
                 hashCode = (hashCode * 397) ^ SizeSpecificImageMaxSize.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaxSize.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaxFilenameLength.GetHashCode();
                 return hashCode;
             }
         }
+
+        #endregion
     }
 }

@@ -22,73 +22,32 @@ namespace NuClear.VStore.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            JObject obj;
-            try
-            {
-                obj = JObject.Load(reader);
-            }
-            catch (JsonReaderException ex)
-            {
-                throw new JsonSerializationException("Template element descriptor is not a valid JSON", ex);
-            }
-
-            var typeToken = obj[Tokens.TypeToken];
-            if (typeToken == null)
-            {
-                throw new JsonSerializationException($"Some template element doesn't contain '{Tokens.TypeToken}' property.");
-            }
-
-            var type = typeToken.ToString();
-            if (!Enum.TryParse<ElementDescriptorType>(type, true, out var descriptorType) ||
-                !Enum.IsDefined(typeof(ElementDescriptorType), descriptorType))
-            {
-                throw new JsonSerializationException($"Some template element has incorrect type '{type}'.");
-            }
-
+            var obj = JObject.Load(reader);
+            var type = obj[Tokens.TypeToken].ToString();
+            var descriptorType = (ElementDescriptorType)Enum.Parse(typeof(ElementDescriptorType), type, true);
             return DeserializeElementDescriptor(obj, descriptorType);
         }
 
         private static IElementDescriptor DeserializeElementDescriptor(JToken token, ElementDescriptorType descriptorType)
         {
-            var templateCodeToken = token[Tokens.TemplateCodeToken];
-            if (templateCodeToken == null)
-            {
-                throw new JsonSerializationException($"Some template element of type '{descriptorType.ToString()}' doesn't contain '{Tokens.TemplateCodeToken}' property.");
-            }
-
-            var templateCode = templateCodeToken.ToObject<int>();
-            var propertiesToken = token[Tokens.PropertiesToken];
-            if (propertiesToken == null)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' doesn't contain '{Tokens.PropertiesToken}' property.");
-            }
-
-            var properties = (JObject)propertiesToken;
+            var templateCode = token[Tokens.TemplateCodeToken].ToObject<int>();
+            var properties = (JObject)token[Tokens.PropertiesToken];
             var constraintSet = token[Tokens.ConstraintsToken];
-            if (constraintSet == null)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' doesn't contain '{Tokens.ConstraintsToken}' property.");
-            }
-
-            return new ElementDescriptor(descriptorType, templateCode, properties, DeserializeConstraintSet(templateCode, constraintSet, descriptorType));
+            return new ElementDescriptor(descriptorType, templateCode, properties, DeserializeConstraintSet(constraintSet, descriptorType));
         }
 
-        private static ConstraintSet DeserializeConstraintSet(int templateCode, JToken token, ElementDescriptorType descriptorType)
+        private static ConstraintSet DeserializeConstraintSet(JToken token, ElementDescriptorType descriptorType)
         {
             var constraintSetItems = new List<ConstraintSetItem>();
             foreach (var item in token)
             {
                 if (item.Type != JTokenType.Property)
                 {
-                    throw new JsonSerializationException($"Template element with template code '{templateCode}' has malformed constraints.");
+                    throw new FormatException($"Template element of type {descriptorType} constraints are malformed.");
                 }
 
                 var property = (JProperty)item;
-                if (!Enum.TryParse<Language>(property.Name, true, out var language) ||
-                    !Enum.IsDefined(typeof(Language), language))
-                {
-                    throw new JsonSerializationException($"Template element with template code '{templateCode}' has incorrect constraint language '{property.Name}'.");
-                }
+                var language = (Language)Enum.Parse(typeof(Language), property.Name, true);
 
                 IElementConstraints constraints;
                 switch (descriptorType)
@@ -124,19 +83,11 @@ namespace NuClear.VStore.Json
                     case ElementDescriptorType.CompositeBitmapImage:
                         constraints = property.Value.ToObject<CompositeBitmapImageElementConstraints>();
                         break;
-                    case ElementDescriptorType.ScalableBitmapImage:
-                        constraints = property.Value.ToObject<ScalableBitmapImageElementConstraints>();
-                        break;
                     default:
-                        throw new JsonSerializationException($"Template element with template code '{templateCode}' has unknown type {descriptorType.ToString()}.");
+                        return null;
                 }
 
                 constraintSetItems.Add(new ConstraintSetItem(language, constraints));
-            }
-
-            if (constraintSetItems.Count < 1)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' has no constraints.");
             }
 
             return new ConstraintSet(constraintSetItems);

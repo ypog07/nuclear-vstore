@@ -19,7 +19,6 @@
         UnsupportedImageFileFormat,
         MaxSizeLimitExceeded,
         InvalidImageSizeRange,
-        InvalidAspectRatio,
         NegativeSizeSpecificImageMaxSize
     }
 }

@@ -4,11 +4,7 @@ using System.Linq;
 
 namespace NuClear.VStore.Descriptors.Templates
 {
-    public sealed class BitmapImageElementConstraints :
-        IBinaryElementConstraints,
-        IBinaryFormatConstraints,
-        IImageElementConstraints,
-        IEquatable<BitmapImageElementConstraints>
+    public sealed class BitmapImageElementConstraints : IBinaryElementConstraints, IImageElementConstraints, IEquatable<BitmapImageElementConstraints>
     {
         public int? MaxSize { get; set; }
         public int? MaxFilenameLength { get; set; }
@@ -22,7 +18,7 @@ namespace NuClear.VStore.Descriptors.Templates
 
         public bool Equals(BitmapImageElementConstraints other)
         {
-            if (other is null)
+            if (ReferenceEquals(null, other))
             {
                 return false;
             }

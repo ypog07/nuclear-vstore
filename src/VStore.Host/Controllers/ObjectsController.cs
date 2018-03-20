@@ -201,9 +201,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (TryGetModelErrors(out var errors))
+            if (objectDescriptor == null)
             {
-                return BadRequest(errors);
+                return BadRequest("Object descriptor must be set.");
             }
 
             try
@@ -261,11 +261,6 @@ namespace NuClear.VStore.Host.Controllers
             [FromHeader(Name = Http.HeaderNames.AmsAuthorName)] string authorName,
             [FromBody] IObjectDescriptor objectDescriptor)
         {
-            if (string.IsNullOrEmpty(ifMatch))
-            {
-                return BadRequest($"'{HeaderNames.IfMatch}' request header must be specified.");
-            }
-
             if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(authorLogin) || string.IsNullOrEmpty(authorName))
             {
                 return BadRequest(
@@ -273,9 +268,14 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (TryGetModelErrors(out var errors))
+            if (string.IsNullOrEmpty(author))
             {
-                return BadRequest(errors);
+                return BadRequest($"'{Http.HeaderNames.AmsAuthor}' request header must be specified.");
+            }
+
+            if (objectDescriptor == null)
+            {
+                return BadRequest("Object descriptor must be set.");
             }
 
             try

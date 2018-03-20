@@ -12,7 +12,6 @@
         Phone,
         VideoLink,
         Color,
-        CompositeBitmapImage,
-        ScalableBitmapImage
+        CompositeBitmapImage
     }
 }

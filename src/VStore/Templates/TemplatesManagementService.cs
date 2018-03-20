@@ -36,9 +36,6 @@ namespace NuClear.VStore.Templates
         private static readonly IReadOnlyCollection<FileFormat> CompositeBitmapImageFileFormats =
             new[] { FileFormat.Png, FileFormat.Gif, FileFormat.Jpg, FileFormat.Jpeg };
 
-        private static readonly IReadOnlyCollection<FileFormat> ScalableBitmapImageFileFormats =
-            new[] { FileFormat.Png, FileFormat.Gif, FileFormat.Jpg, FileFormat.Jpeg };
-
         private readonly IS3Client _s3Client;
         private readonly TemplatesStorageReader _templatesStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
@@ -72,8 +69,7 @@ namespace NuClear.VStore.Templates
                 new ElementDescriptor(ElementDescriptorType.Phone, 8, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new PhoneElementConstraints()) })),
                 new ElementDescriptor(ElementDescriptorType.VideoLink, 9, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new LinkElementConstraints()) })),
                 new ElementDescriptor(ElementDescriptorType.Color, 10, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new ColorElementConstraints()) })),
-                new ElementDescriptor(ElementDescriptorType.CompositeBitmapImage, 11, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new CompositeBitmapImageElementConstraints { SupportedFileFormats = CompositeBitmapImageFileFormats }) })),
-                new ElementDescriptor(ElementDescriptorType.ScalableBitmapImage, 12, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new ScalableBitmapImageElementConstraints { SupportedFileFormats = ScalableBitmapImageFileFormats }) }))
+                new ElementDescriptor(ElementDescriptorType.CompositeBitmapImage, 11, new JObject(), new ConstraintSet(new[] { new ConstraintSetItem(Language.Unspecified, new CompositeBitmapImageElementConstraints { SupportedFileFormats = CompositeBitmapImageFileFormats }) }))
             };
 
         public async Task<string> CreateTemplate(long id, AuthorInfo authorInfo, ITemplateDescriptor templateDescriptor)
@@ -162,9 +158,6 @@ namespace NuClear.VStore.Templates
                                                    break;
                                                case CompositeBitmapImageElementConstraints compositeBitmapImageElementConstraints:
                                                    VerifyCompositeBitmapImageConstraints(x.TemplateCode, compositeBitmapImageElementConstraints);
-                                                   break;
-                                               case ScalableBitmapImageElementConstraints scalableBitmapImageElementConstraints:
-                                                   VerifyScalableBitmapImageConstraints(x.TemplateCode, scalableBitmapImageElementConstraints);
                                                    break;
                                                case PhoneElementConstraints _:
                                                case ColorElementConstraints _:
@@ -291,28 +284,13 @@ namespace NuClear.VStore.Templates
             }
         }
 
-        private static bool SizeRangeIsConsistent(ImageSizeRange range)
-        {
-            return range.Min.Width < range.Max.Width && range.Min.Height < range.Max.Height && range.Min.Width > 0 && range.Min.Height > 0;
-        }
-
-        private void VerifyScalableBitmapImageConstraints(int templateCode, ScalableBitmapImageElementConstraints constraints)
-        {
-            VerifyBinaryConstraints(templateCode, constraints);
-
-            if (constraints.SupportedFileFormats.Any(x => !ScalableBitmapImageFileFormats.Contains(x)))
-            {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationError.UnsupportedImageFileFormat);
-            }
-
-            if (!SizeRangeIsConsistent(constraints.ImageSizeRange))
-            {
-                throw new TemplateValidationException(templateCode, TemplateElementValidationError.InvalidImageSizeRange);
-            }
-        }
-
         private void VerifyCompositeBitmapImageConstraints(int templateCode, CompositeBitmapImageElementConstraints compositeBitmapImageElementConstraints)
         {
+            bool SizeRangeIsConsistent(ImageSizeRange range)
+            {
+                return range.Min.Width < range.Max.Width && range.Min.Height < range.Max.Height && range.Min.Width > 0 && range.Min.Height > 0;
+            }
+
             VerifyBinaryConstraints(templateCode, compositeBitmapImageElementConstraints);
 
             if (compositeBitmapImageElementConstraints.SizeSpecificImageMaxSize <= 0)

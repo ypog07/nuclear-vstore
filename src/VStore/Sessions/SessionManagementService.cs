@@ -38,7 +38,7 @@ namespace NuClear.VStore.Sessions
         private readonly ICephS3Client _cephS3Client;
         private readonly SessionStorageReader _sessionStorageReader;
         private readonly TemplatesStorageReader _templatesStorageReader;
-        private readonly IEventSender _eventSender;
+        private readonly EventSender _eventSender;
         private readonly IMemoryCache _memoryCache;
         private readonly Counter _uploadedBinariesMetric;
         private readonly Counter _createdSessionsMetric;
@@ -50,7 +50,7 @@ namespace NuClear.VStore.Sessions
             ICephS3Client cephS3Client,
             SessionStorageReader sessionStorageReader,
             TemplatesStorageReader templatesStorageReader,
-            IEventSender eventSender,
+            EventSender eventSender,
             MetricsProvider metricsProvider,
             IMemoryCache memoryCache)
         {
@@ -317,18 +317,7 @@ namespace NuClear.VStore.Sessions
             switch (elementDescriptorType)
             {
                 case ElementDescriptorType.BitmapImage:
-                    BitmapImageValidator.ValidateBitmapImageHeader(
-                        templateCode,
-                        (BitmapImageElementConstraints)elementConstraints,
-                        fileFormat,
-                        inputStream);
-                    break;
-                case ElementDescriptorType.ScalableBitmapImage:
-                    BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(
-                        templateCode,
-                        (ScalableBitmapImageElementConstraints)elementConstraints,
-                        fileFormat,
-                        inputStream);
+                    BitmapImageValidator.ValidateBitmapImageHeader(templateCode, (BitmapImageElementConstraints)elementConstraints, fileFormat, inputStream);
                     break;
                 case ElementDescriptorType.CompositeBitmapImage:
                     if (uploadedFileMetadata.FileType == FileType.SizeSpecificBitmapImage)
@@ -343,7 +332,7 @@ namespace NuClear.VStore.Sessions
                     }
                     else
                     {
-                        BitmapImageValidator.ValidateSizeRangedBitmapImageHeader(
+                        BitmapImageValidator.ValidateCompositeBitmapImageOriginalHeader(
                             templateCode,
                             (CompositeBitmapImageElementConstraints)elementConstraints,
                             fileFormat,
@@ -389,8 +378,6 @@ namespace NuClear.VStore.Sessions
                     ArticleValidator.ValidateArticle(templateCode, inputStream);
                     break;
                 case ElementDescriptorType.CompositeBitmapImage:
-                    break;
-                case ElementDescriptorType.ScalableBitmapImage:
                     break;
                 case ElementDescriptorType.PlainText:
                 case ElementDescriptorType.FormattedText:
