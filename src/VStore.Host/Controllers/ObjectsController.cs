@@ -23,12 +23,12 @@ namespace NuClear.VStore.Host.Controllers
     [Route("api/{api-version:apiVersion}/objects")]
     public sealed class ObjectsController : VStoreController
     {
-        private readonly ObjectsStorageReader _objectsStorageReader;
+        private readonly IObjectsStorageReader _objectsStorageReader;
         private readonly ObjectsManagementService _objectsManagementService;
         private readonly ILogger<ObjectsController> _logger;
 
         public ObjectsController(
-            ObjectsStorageReader objectsStorageReader,
+            IObjectsStorageReader objectsStorageReader,
             ObjectsManagementService objectsManagementService,
             ILogger<ObjectsController> logger)
         {

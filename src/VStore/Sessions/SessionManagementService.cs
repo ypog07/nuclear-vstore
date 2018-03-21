@@ -37,7 +37,7 @@ namespace NuClear.VStore.Sessions
         private readonly string _sessionsTopicName;
         private readonly ICephS3Client _cephS3Client;
         private readonly SessionStorageReader _sessionStorageReader;
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly IEventSender _eventSender;
         private readonly IMemoryCache _memoryCache;
         private readonly Counter _uploadedBinariesMetric;
@@ -49,7 +49,7 @@ namespace NuClear.VStore.Sessions
             KafkaOptions kafkaOptions,
             ICephS3Client cephS3Client,
             SessionStorageReader sessionStorageReader,
-            TemplatesStorageReader templatesStorageReader,
+            ITemplatesStorageReader templatesStorageReader,
             IEventSender eventSender,
             MetricsProvider metricsProvider,
             IMemoryCache memoryCache)

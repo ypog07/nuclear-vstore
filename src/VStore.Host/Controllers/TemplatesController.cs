@@ -24,10 +24,10 @@ namespace NuClear.VStore.Host.Controllers
     [Route("api/{api-version:apiVersion}/templates")]
     public class TemplatesController : VStoreController
     {
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly TemplatesManagementService _templatesManagementService;
 
-        public TemplatesController(TemplatesStorageReader templatesStorageReader, TemplatesManagementService templatesManagementService)
+        public TemplatesController(ITemplatesStorageReader templatesStorageReader, TemplatesManagementService templatesManagementService)
         {
             _templatesStorageReader = templatesStorageReader;
             _templatesManagementService = templatesManagementService;

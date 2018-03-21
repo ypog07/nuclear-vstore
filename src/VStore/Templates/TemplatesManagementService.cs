@@ -40,7 +40,7 @@ namespace NuClear.VStore.Templates
             new[] { FileFormat.Png, FileFormat.Gif, FileFormat.Jpg, FileFormat.Jpeg };
 
         private readonly IS3Client _s3Client;
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
         private readonly string _bucketName;
         private readonly long _maxBinarySize;
@@ -49,7 +49,7 @@ namespace NuClear.VStore.Templates
             UploadFileOptions uploadFileOptions,
             CephOptions cephOptions,
             IS3Client s3Client,
-            TemplatesStorageReader templatesStorageReader,
+            ITemplatesStorageReader templatesStorageReader,
             DistributedLockManager distributedLockManager)
         {
             _s3Client = s3Client;

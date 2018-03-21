@@ -23,13 +23,13 @@ namespace NuClear.VStore.Renderer.Controllers
     {
         private readonly TimeSpan _retryAfter;
         private readonly RawFileStorageInfoProvider _rawFileStorageInfoProvider;
-        private readonly ObjectsStorageReader _objectsStorageReader;
+        private readonly IObjectsStorageReader _objectsStorageReader;
         private readonly ImagePreviewService _imagePreviewService;
 
         public PreviewController(
             ThrottlingOptions throttlingOptions,
             RawFileStorageInfoProvider rawFileStorageInfoProvider,
-            ObjectsStorageReader objectsStorageReader,
+            IObjectsStorageReader objectsStorageReader,
             ImagePreviewService imagePreviewService)
         {
             _retryAfter = throttlingOptions.RetryAfter;

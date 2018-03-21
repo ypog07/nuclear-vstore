@@ -281,6 +281,7 @@ namespace NuClear.VStore.Host
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<ITemplatesStorageReader>()
                    .SingleInstance();
             builder.RegisterType<TemplatesManagementService>()
                    .WithParameter(
@@ -291,6 +292,7 @@ namespace NuClear.VStore.Host
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsStorageReader>()
                    .SingleInstance();
             builder.RegisterType<ObjectsManagementService>()
                    .WithParameter(

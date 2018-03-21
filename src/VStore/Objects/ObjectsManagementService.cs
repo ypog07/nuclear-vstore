@@ -37,8 +37,8 @@ namespace NuClear.VStore.Objects
     public sealed class ObjectsManagementService
     {
         private readonly IS3Client _s3Client;
-        private readonly TemplatesStorageReader _templatesStorageReader;
-        private readonly ObjectsStorageReader _objectsStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
+        private readonly IObjectsStorageReader _objectsStorageReader;
         private readonly SessionStorageReader _sessionStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
         private readonly IEventSender _eventSender;
@@ -50,8 +50,8 @@ namespace NuClear.VStore.Objects
             CephOptions cephOptions,
             KafkaOptions kafkaOptions,
             IS3Client s3Client,
-            TemplatesStorageReader templatesStorageReader,
-            ObjectsStorageReader objectsStorageReader,
+            ITemplatesStorageReader templatesStorageReader,
+            IObjectsStorageReader objectsStorageReader,
             SessionStorageReader sessionStorageReader,
             DistributedLockManager distributedLockManager,
             IEventSender eventSender,

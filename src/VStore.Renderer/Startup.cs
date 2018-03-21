@@ -158,11 +158,13 @@ namespace NuClear.VStore.Renderer
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<ITemplatesStorageReader>()
                    .SingleInstance();
             builder.RegisterType<ObjectsStorageReader>()
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsStorageReader>()
                    .SingleInstance();
             builder.RegisterType<ImagePreviewService>()
                    .WithParameter(
