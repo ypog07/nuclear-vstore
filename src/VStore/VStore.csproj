@@ -14,8 +14,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="RedLock.net" Version="2.0.0-pre2-fixed" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-denisivan0v-descrease-maxarraysperbucket000046" />
-    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-denisivan0v-descrease-maxarraysperbucket000046" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-dev000924" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-dev000924" />
     <PackageReference Include="System.Net.NameResolution" Version="4.3.0" />
     <PackageReference Include="Prometheus.Client" Version="1.4.0" />
     <PackageReference Include="System.Reactive.Linq" Version="3.1.1" />

@@ -15,9 +15,12 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Drawing;
+using SixLabors.ImageSharp.Processing.Overlays;
+using SixLabors.ImageSharp.Processing.Transforms;
+using SixLabors.ImageSharp.Processing.Transforms.Resamplers;
 using SixLabors.Primitives;
 using SixLabors.Shapes;
 
@@ -32,7 +35,7 @@ namespace NuClear.VStore.ImageRendering
             new Dictionary<string, IImageEncoder>
                 {
                     { ImageFormats.Jpeg.DefaultMimeType, new JpegEncoder { Quality = 100, IgnoreMetadata = true } },
-                    { ImageFormats.Png.DefaultMimeType, new PngEncoder { CompressionLevel = 1, IgnoreMetadata = true } },
+                    { ImageFormats.Png.DefaultMimeType, new PngEncoder { CompressionLevel = 1 } },
                     { ImageFormats.Gif.DefaultMimeType, new GifEncoder { IgnoreMetadata = true } }
                 };
 
@@ -190,7 +193,7 @@ namespace NuClear.VStore.ImageRendering
 
             var extentImage = new Image<Rgba32>(unionRectangle.Width, unionRectangle.Height);
             extentImage.Mutate(x => x.BackgroundColor(backgroundColor)
-                                     .DrawImage(image, image.Size(), new Point(-unionRectangle.X, -unionRectangle.Y), GraphicsOptions.Default)
+                                     .DrawImage(GraphicsOptions.Default, image, new Point(-unionRectangle.X, -unionRectangle.Y))
                                      .Crop(cropAreaRectangle));
 
             return extentImage;
@@ -218,9 +221,10 @@ namespace NuClear.VStore.ImageRendering
         private static void ApplyRoundedCorners(Image<Rgba32> image, float cornerRadius)
         {
             var corners = GetClippedRect(image.Width, image.Height, cornerRadius);
-            image.Mutate(ctx => ctx.Fill(Rgba32.Transparent,
-                                         corners,
-                                         new GraphicsOptions { BlenderMode = PixelBlenderMode.Src, Antialias = false }));
+            image.Mutate(ctx => ctx.Fill(
+                             new GraphicsOptions { BlenderMode = PixelBlenderMode.Src, Antialias = false },
+                             Rgba32.Transparent,
+                             corners));
         }
 
         private static IPath GetClippedRect(int imageWidth, int imageHeight, float cornerRadius)
