@@ -19,7 +19,7 @@ namespace NuClear.VStore.Descriptors.Templates
 
         public bool Equals(VectorImageElementConstraints other)
         {
-            if (ReferenceEquals(null, other))
+            if (other is null)
             {
                 return false;
             }

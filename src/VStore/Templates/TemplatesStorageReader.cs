@@ -21,7 +21,7 @@ using NuClear.VStore.S3;
 
 namespace NuClear.VStore.Templates
 {
-    public sealed class TemplatesStorageReader
+    public sealed class TemplatesStorageReader : ITemplatesStorageReader
     {
         private readonly IS3Client _s3Client;
         private readonly IMemoryCache _memoryCache;

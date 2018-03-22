@@ -20,16 +20,10 @@
 
         public override bool Equals(object obj)
         {
-            return obj is ImageSize && this == (ImageSize)obj;
+            return obj is ImageSize size && this == size;
         }
 
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (Height * 397) ^ Width;
-            }
-        }
+        public override int GetHashCode() => unchecked((Height * 397) ^ Width);
 
         public static bool TryParse(string size, out ImageSize imageSize)
         {
