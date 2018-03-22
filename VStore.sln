@@ -42,8 +42,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VStore.Renderer", "src\VSto
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VStore.Http", "src\VStore.Http.Core\VStore.Http.Core.csproj", "{09046190-BF95-49BE-86EF-C2666D47B848}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmsMigrator", "src\AmsMigrator\AmsMigrator.csproj", "{3BB4B0D4-A401-4233-9543-82F953730CF4}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -78,10 +76,6 @@ Global
 		{09046190-BF95-49BE-86EF-C2666D47B848}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{09046190-BF95-49BE-86EF-C2666D47B848}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{09046190-BF95-49BE-86EF-C2666D47B848}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3BB4B0D4-A401-4233-9543-82F953730CF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3BB4B0D4-A401-4233-9543-82F953730CF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3BB4B0D4-A401-4233-9543-82F953730CF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3BB4B0D4-A401-4233-9543-82F953730CF4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,7 +89,6 @@ Global
 		{337F7277-72F6-4E44-97E9-C368163F033D} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
 		{29DC0B5F-8FE9-458F-A234-D87B39E87664} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
 		{09046190-BF95-49BE-86EF-C2666D47B848} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
-		{3BB4B0D4-A401-4233-9543-82F953730CF4} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {28513BAC-F427-4255-BB2A-23569F52A866}
