@@ -26,11 +26,11 @@ using NuClear.VStore.Templates;
 
 namespace NuClear.VStore.Objects
 {
-    public sealed class ObjectsStorageReader
+    public sealed class ObjectsStorageReader : IObjectsStorageReader
     {
         private readonly CdnOptions _cdnOptions;
         private readonly IS3Client _s3Client;
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
         private readonly string _bucketName;
         private readonly int _degreeOfParallelism;
@@ -39,7 +39,7 @@ namespace NuClear.VStore.Objects
             CephOptions cephOptions,
             CdnOptions cdnOptions,
             IS3Client s3Client,
-            TemplatesStorageReader templatesStorageReader,
+            ITemplatesStorageReader templatesStorageReader,
             DistributedLockManager distributedLockManager)
         {
             _cdnOptions = cdnOptions;
@@ -355,12 +355,15 @@ namespace NuClear.VStore.Objects
             switch (binaryElementValue)
             {
                 case ICompositeBitmapImageElementValue compositeBitmapImageElementValue:
-                    compositeBitmapImageElementValue.PreviewUri = _cdnOptions.AsPreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
+                    compositeBitmapImageElementValue.PreviewUri = _cdnOptions.AsCompositePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
                     foreach (var image in compositeBitmapImageElementValue.SizeSpecificImages)
                     {
                         image.DownloadUri = _cdnOptions.AsRawUri(image.Raw);
                     }
 
+                    break;
+                case IScalableBitmapImageElementValue scalableBitmapImageElementValue:
+                    scalableBitmapImageElementValue.PreviewUri = _cdnOptions.AsScalablePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
                     break;
                 case IImageElementValue imageElementValue:
                     imageElementValue.PreviewUri = _cdnOptions.AsRawUri(imageElementValue.Raw);

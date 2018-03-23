@@ -54,7 +54,7 @@ namespace NuClear.VStore.ImageRendering
             _requestLimiter = requestLimiter;
         }
 
-        public async Task<(Stream imageStream, string contentType)> GetPreview(
+        public async Task<(Stream imageStream, string contentType)> GetCroppedPreview(
             IImageElementValue imageElementValue,
             int templateCode,
             int width,
@@ -64,7 +64,7 @@ namespace NuClear.VStore.ImageRendering
         }
 
         [Obsolete]
-        public async Task<(Stream imageStream, string contentType)> GetRoundedPreview(
+        public async Task<(Stream imageStream, string contentType)> GetCroppedAndRoundedPreview(
             IImageElementValue imageElementValue,
             int templateCode,
             int width,
@@ -78,6 +78,26 @@ namespace NuClear.VStore.ImageRendering
                        target => ApplyRoundedCorners(target, target.Height * 0.5f));
         }
 
+        public async Task<(Stream imageStream, string contentType)> GetScaledPreview(
+            IImageElementValue imageElementValue,
+            int templateCode,
+            int width,
+            int height)
+        {
+            var cts = new CancellationTokenSource(_requestTimeout);
+            var rawStream = await GetRawStream(imageElementValue, cts.Token);
+
+            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+
+            using (var source = Decode(templateCode, rawStream, out var imageFormat))
+            {
+                var anchorPositionMode = EvaluateAnchorPositionMode(imageElementValue);
+                Resize(source, new Size(width, height), anchorPositionMode);
+
+                var targetStream = Encode(source, imageFormat);
+                return (targetStream, imageFormat.DefaultMimeType);
+            }
+        }
 
         private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
             IImageElementValue imageElementValue,
@@ -92,7 +112,7 @@ namespace NuClear.VStore.ImageRendering
 
             EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
-            using (var source = Decode(templateCode, rawStream))
+            using (var source = Decode(templateCode, rawStream, out _))
             {
                 using (var target = Crop(source, imageElementValue))
                 {
@@ -106,7 +126,7 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-        private static Image<Rgba32> Decode(int templateCode, Stream sourceStream)
+        private static Image<Rgba32> Decode(int templateCode, Stream sourceStream, out IImageFormat imageFormat)
         {
             using (sourceStream)
             {
@@ -114,7 +134,7 @@ namespace NuClear.VStore.ImageRendering
                 try
                 {
                     sourceStream.Position = 0;
-                    image = Image.Load(sourceStream);
+                    image = Image.Load(sourceStream, out imageFormat);
                 }
                 catch
                 {
@@ -207,6 +227,49 @@ namespace NuClear.VStore.ImageRendering
                     Sampler = new Lanczos2Resampler(),
                     Mode = ResizeMode.Stretch
                 }));
+        }
+
+        private static void Resize(Image<Rgba32> image, Size size, AnchorPositionMode anchorPositionModel)
+        {
+            image.Mutate(ctx => ctx.Resize(new ResizeOptions
+                {
+                    Size = size,
+                    Sampler = new Lanczos2Resampler(),
+                    Mode = ResizeMode.Crop,
+                    Position = anchorPositionModel
+                }));
+        }
+
+        private static AnchorPositionMode EvaluateAnchorPositionMode(IImageElementValue imageElementValue)
+        {
+            if (!(imageElementValue is IScalableBitmapImageElementValue scalableBitmapImageElementValue))
+            {
+                return AnchorPositionMode.Center;
+            }
+
+            switch (scalableBitmapImageElementValue.Anchor)
+            {
+                case Anchor.TopLeft:
+                    return AnchorPositionMode.TopLeft;
+                case Anchor.Top:
+                    return AnchorPositionMode.Top;
+                case Anchor.TopRight:
+                    return AnchorPositionMode.TopRight;
+                case Anchor.Left:
+                    return AnchorPositionMode.Left;
+                case Anchor.Middle:
+                    return AnchorPositionMode.Center;
+                case Anchor.Right:
+                    return AnchorPositionMode.Right;
+                case Anchor.BottomLeft:
+                    return AnchorPositionMode.BottomLeft;
+                case Anchor.Bottom:
+                    return AnchorPositionMode.Bottom;
+                case Anchor.BottomRight:
+                    return AnchorPositionMode.BottomRight;
+                default:
+                    return AnchorPositionMode.Center;
+            }
         }
 
         private MemoryStream Encode(Image<Rgba32> image, IImageFormat format)

@@ -12,9 +12,14 @@ namespace NuClear.VStore.Options
             return new Uri(options.CdnUrl, $"{CdnRawsUriPrefix}/{fileKey}");
         }
 
-        public static Uri AsPreviewUri(this CdnOptions options, long objectId, string versionId, long templateCode)
+        public static Uri AsCompositePreviewUri(this CdnOptions options, long objectId, string versionId, long templateCode)
         {
             return new Uri(options.CdnUrl, $"{CdnPreviewsUriPrefix}/{objectId}/{versionId}/{templateCode}/image.png");
+        }
+
+        public static Uri AsScalablePreviewUri(this CdnOptions options, long objectId, string versionId, long templateCode)
+        {
+            return new Uri(options.CdnUrl, $"{CdnPreviewsUriPrefix}/{objectId}/{versionId}/{templateCode}/");
         }
     }
 }

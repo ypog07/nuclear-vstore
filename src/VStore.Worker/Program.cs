@@ -172,7 +172,7 @@ namespace NuClear.VStore.Worker
 
             builder.RegisterType<MemoryCache>().As<IMemoryCache>().SingleInstance();
 
-            builder.RegisterType<EventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
 
             builder.RegisterType<JobRegistry>().SingleInstance();
             builder.RegisterType<JobRunner>().SingleInstance();
@@ -271,11 +271,13 @@ namespace NuClear.VStore.Worker
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<ITemplatesStorageReader>()
                    .InstancePerDependency();
             builder.RegisterType<ObjectsStorageReader>()
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsStorageReader>()
                    .InstancePerDependency();
             builder.RegisterType<MetricsProvider>().SingleInstance();
 

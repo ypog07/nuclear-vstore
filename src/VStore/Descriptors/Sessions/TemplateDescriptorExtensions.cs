@@ -13,7 +13,8 @@ namespace NuClear.VStore.Descriptors.Sessions
                                      .Where(x => x.Type == ElementDescriptorType.Article ||
                                                  x.Type == ElementDescriptorType.BitmapImage ||
                                                  x.Type == ElementDescriptorType.VectorImage ||
-                                                 x.Type == ElementDescriptorType.CompositeBitmapImage)
+                                                 x.Type == ElementDescriptorType.CompositeBitmapImage ||
+                                                 x.Type == ElementDescriptorType.ScalableBitmapImage)
                                      .Select(x => x.TemplateCode)
                                      .ToList();
         }
