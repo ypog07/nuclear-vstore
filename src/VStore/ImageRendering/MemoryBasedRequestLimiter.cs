@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime;
 using System.Threading;
 
 using NuClear.VStore.Options;
@@ -22,6 +23,7 @@ namespace NuClear.VStore.ImageRendering
                 var managedMemory = GC.GetTotalMemory(false);
                 if (managedMemory + requiredMemoryInBytes > _memoryToAllocateThreshold)
                 {
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                     managedMemory = GC.GetTotalMemory(true);
                     if (managedMemory + requiredMemoryInBytes > _memoryToAllocateThreshold)
                     {

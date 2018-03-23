@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 
+using NuClear.VStore.ImageRendering;
+
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -10,6 +12,11 @@ namespace VStore.UnitTests.ImageRendering
 {
     public sealed class MemoryConsumptionTests
     {
+        public MemoryConsumptionTests()
+        {
+            Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
+        }
+
         [Fact]
         public void ShouldBeAllocatedLessThan80Mb()
         {
@@ -42,7 +49,7 @@ namespace VStore.UnitTests.ImageRendering
             GC.Collect();
 
             var before = GC.GetTotalMemory(false);
-            using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
+            using (Image.Load<Rgba32>(Configuration.Default, Path.Combine("images", "5000x3750.png")))
             {
                 using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
                 {
