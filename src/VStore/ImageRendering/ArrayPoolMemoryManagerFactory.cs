@@ -10,7 +10,7 @@ namespace NuClear.VStore.ImageRendering
         /// <returns>The memory manager</returns>
         public static ArrayPoolMemoryManager CreateWithLimitedPooling()
         {
-            return new ArrayPoolMemoryManager(1024 * 1024, 32, 1, 1);
+            return new ArrayPoolMemoryManager(512 * 512, 32, 1, 1);
         }
     }
 }
