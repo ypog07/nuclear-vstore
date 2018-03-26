@@ -109,7 +109,7 @@ namespace VStore.UnitTests.ImageRendering
 
             var after = GC.GetTotalMemory(false);
 
-            Assert.True(after - before < RentedMemory);
+            Assert.InRange(0, after - before, RentedMemory);
         }
 
         [Fact]
@@ -138,7 +138,7 @@ namespace VStore.UnitTests.ImageRendering
                                 {
                                     var after = GC.GetTotalMemory(false);
 
-                                    Assert.True(after - before < RentedMemory);
+                                    Assert.InRange(0, after - before, RentedMemory);
                                 }
                             }
                         }
