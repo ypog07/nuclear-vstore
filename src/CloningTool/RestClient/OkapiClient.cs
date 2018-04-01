@@ -448,7 +448,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<string> CreateTemplateAsync(string templateId, TemplateDescriptor template)
+        public async Task<string> CreateTemplateAsync(string templateId, ApiTemplateDescriptor template)
         {
             var methodUri = new Uri(_templateUri, templateId);
             var server = string.Empty;
@@ -548,7 +548,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<TemplateDescriptor> GetTemplateAsync(string templateId)
+        public async Task<ApiTemplateDescriptor> GetTemplateAsync(string templateId)
         {
             var server = string.Empty;
             var requestId = string.Empty;
@@ -567,7 +567,7 @@ namespace CloningTool.RestClient
                     }
 
                     response.EnsureSuccessStatusCode();
-                    var descriptor = JsonConvert.DeserializeObject<TemplateDescriptor>(stringResponse, SerializerSettings.Default);
+                    var descriptor = JsonConvert.DeserializeObject<ApiTemplateDescriptor>(stringResponse, SerializerSettings.Default);
                     if (descriptor == null)
                     {
                         throw new SerializationException("Cannot deserialize template descriptor " + templateId + ": " + stringResponse);
@@ -594,7 +594,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<string> UpdateTemplateAsync(TemplateDescriptor template, string versionId)
+        public async Task<string> UpdateTemplateAsync(ApiTemplateDescriptor template, string versionId)
         {
             var server = string.Empty;
             var requestId = string.Empty;

@@ -139,7 +139,7 @@ namespace CloningTool.CloneStrategies
             }
         }
 
-        private bool CompareTemplateDescriptors(TemplateDescriptor existedTemplate, TemplateDescriptor newTemplate)
+        private bool CompareTemplateDescriptors(ApiTemplateDescriptor existedTemplate, ApiTemplateDescriptor newTemplate)
         {
             var firstProps = existedTemplate.Properties
                 .Properties()
