@@ -6,6 +6,15 @@ namespace CloningTool.Json
 {
     public sealed class ApiTemplateElementDescriptor
     {
+        public ApiTemplateElementDescriptor(ElementDescriptorType descriptorType, int templateCode, JObject properties, ConstraintSet constraintSet, PlacementDescriptor placement)
+        {
+            Type = descriptorType;
+            TemplateCode = templateCode;
+            Properties = properties;
+            Constraints = constraintSet;
+            Placement = placement;
+        }
+
         public ElementDescriptorType Type { get; set; }
         public int TemplateCode { get; set; }
         public JObject Properties { get; set; }

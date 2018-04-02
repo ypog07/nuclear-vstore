@@ -16,8 +16,10 @@ namespace CloningTool.Json
                 new ElementDescriptorJsonConverter(),
                 new ElementDescriptorCollectionJsonConverter(),
                 new ApiObjectElementDescriptorJsonConverter(),
-                new ApiObjectDescriptorJsonConverter()
+                new ApiTemplateDescriptorJsonConverter(),
+                new ApiTemplateElementDescriptorJsonConverter()
             };
+
         static ApiSerializerSettings()
         {
             Default = new JsonSerializerSettings

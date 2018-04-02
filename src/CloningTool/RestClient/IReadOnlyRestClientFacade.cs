@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 
 using CloningTool.Json;
 
-using NuClear.VStore.Descriptors.Templates;
-
 namespace CloningTool.RestClient
 {
     public interface IReadOnlyRestClientFacade

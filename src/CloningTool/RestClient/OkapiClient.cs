@@ -15,9 +15,7 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 
-using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Http;
-using NuClear.VStore.Json;
 using NuClear.VStore.Objects;
 
 namespace CloningTool.RestClient
@@ -75,7 +73,7 @@ namespace CloningTool.RestClient
                         }
 
                         response.EnsureSuccessStatusCode();
-                        var res = JsonConvert.DeserializeObject<ApiVersionedDescriptor>(stringResponse, SerializerSettings.Default);
+                        var res = JsonConvert.DeserializeObject<ApiVersionedDescriptor>(stringResponse, ApiSerializerSettings.Default);
                         if (res == null)
                         {
                             throw new SerializationException("Cannot deserialize response: " + stringResponse);
@@ -410,7 +408,7 @@ namespace CloningTool.RestClient
         public async Task UpdateAdvertisementModerationStatusAsync(string objectId, string versionId, ModerationResult moderationResult)
         {
             var methodUri = new Uri(_amUri, $"{objectId}/version/{versionId}/moderation");
-            using (var content = new StringContent(JsonConvert.SerializeObject(moderationResult, SerializerSettings.Default), Encoding.UTF8, "application/json"))
+            using (var content = new StringContent(JsonConvert.SerializeObject(moderationResult, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
             {
                 using (var req = new HttpRequestMessage(HttpMethod.Put, methodUri))
                 {
@@ -456,13 +454,7 @@ namespace CloningTool.RestClient
             var stringResponse = string.Empty;
             try
             {
-                var descriptor = new
-                {
-                    template.Properties,
-                    template.Elements
-                };
-
-                using (var content = new StringContent(JsonConvert.SerializeObject(descriptor, SerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
                 {
                     using (var response = await _authorizedHttpClient.PostAsync(methodUri, content))
                     {
@@ -567,7 +559,7 @@ namespace CloningTool.RestClient
                     }
 
                     response.EnsureSuccessStatusCode();
-                    var descriptor = JsonConvert.DeserializeObject<ApiTemplateDescriptor>(stringResponse, SerializerSettings.Default);
+                    var descriptor = JsonConvert.DeserializeObject<ApiTemplateDescriptor>(stringResponse, ApiSerializerSettings.Default);
                     if (descriptor == null)
                     {
                         throw new SerializationException("Cannot deserialize template descriptor " + templateId + ": " + stringResponse);
@@ -603,7 +595,7 @@ namespace CloningTool.RestClient
             var methodUri = new Uri(_templateUri, templateId);
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(template, SerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
                 {
                     using (var request = new HttpRequestMessage(HttpMethod.Put, methodUri))
                     {

@@ -191,6 +191,16 @@ namespace CloningTool.CloneStrategies
                     return false;
                 }
 
+                if (!Equals(firstElement.Placement, secondElement.Placement))
+                {
+                    _logger.LogInformation("Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
+                                           existedTemplate.Id,
+                                           firstElement.TemplateCode,
+                                           firstElement.Placement,
+                                           secondElement.Placement);
+                    return false;
+                }
+
                 var firstConstraint = firstElement.Constraints.For(Language.Unspecified);
                 var secondConstraint = secondElement.Constraints.For(Language.Unspecified);
 
