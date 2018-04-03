@@ -292,7 +292,7 @@ namespace NuClear.VStore.ImageRendering
 
         private static IPath GetClippedRect(int imageWidth, int imageHeight, float cornerRadius)
         {
-            var rect = new RectangularePolygon(-0.5f, -0.5f, imageWidth + 0.5f, imageHeight + 0.5f);
+            var rect = new RectangularPolygon(-0.5f, -0.5f, imageWidth + 0.5f, imageHeight + 0.5f);
             return rect.Clip(new EllipsePolygon(imageWidth * 0.5f, imageHeight * 0.5f, cornerRadius));
         }
 
