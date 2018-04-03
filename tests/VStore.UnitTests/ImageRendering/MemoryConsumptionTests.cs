@@ -206,7 +206,7 @@ namespace VStore.UnitTests.ImageRendering
         private static long GetApproximateRentedMemorySize()
         {
             const int MaxPoolSizeInBytes = 350 * 350 * 4;
-            const float FluctuationFactor = 1.6f;
+            const float FluctuationFactor = 1.7f;
 
             // NOTE: Subject to change!
             // Copy-pasted from https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/Utilities.cs#L13
