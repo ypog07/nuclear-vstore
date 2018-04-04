@@ -22,8 +22,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VStore.Http.Core\VStore.Http.Core.csproj" />
+    <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" />
     <PackageReference Include="Autofac" Version="4.6.2" />
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.2" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.4" />

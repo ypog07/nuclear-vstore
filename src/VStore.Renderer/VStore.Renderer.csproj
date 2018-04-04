@@ -22,8 +22,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VStore.Http.Core\VStore.Http.Core.csproj" />
+    <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.ApiExplorer" Version="2.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.0.3" />
