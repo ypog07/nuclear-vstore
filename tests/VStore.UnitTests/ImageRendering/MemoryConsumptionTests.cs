@@ -34,13 +34,18 @@ namespace VStore.UnitTests.ImageRendering
             GC.Collect();
 
             var before = GC.GetTotalMemory(false);
-            using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
-            {
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                var after = GC.GetTotalMemory(true);
 
-                _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan80Mb)}: {after - before} bytes allocated");
-                Assert.InRange(after - before, rentedMemory, MemoryUpperBound);
+            using (var stream = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+            {
+                stream.Position = 0;
+                using (Image.Load<Rgba32>(stream))
+                {
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                    var after = GC.GetTotalMemory(true);
+
+                    _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan80Mb)}: {after - before} bytes allocated");
+                    Assert.InRange(after - before, rentedMemory, MemoryUpperBound);
+                }
             }
         }
 
@@ -56,15 +61,24 @@ namespace VStore.UnitTests.ImageRendering
             GC.Collect();
 
             var before = GC.GetTotalMemory(false);
-            using (Image.Load<Rgba32>(Configuration.Default, Path.Combine("images", "5000x3750.png")))
-            {
-                using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
-                {
-                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                    var after = GC.GetTotalMemory(true);
 
-                    _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan160Mb)}: {after - before} bytes allocated");
-                    Assert.InRange(after - before, rentedMemory, MemoryUpperBound);
+            using (var stream1 = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+            {
+                stream1.Position = 0;
+                using (Image.Load<Rgba32>(stream1))
+                {
+                    using (var stream2 = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+                    {
+                        stream2.Position = 0;
+                        using (Image.Load<Rgba32>(stream2))
+                        {
+                            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                            var after = GC.GetTotalMemory(true);
+
+                            _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan160Mb)}: {after - before} bytes allocated");
+                            Assert.InRange(after - before, rentedMemory, MemoryUpperBound);
+                        }
+                    }
                 }
             }
         }
@@ -83,36 +97,56 @@ namespace VStore.UnitTests.ImageRendering
 
             for (var index = 0; index < LoadCount; index++)
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "64x48.png")))
+                using (var stream = File.OpenRead(Path.Combine("images", "64x48.png")))
                 {
+                    stream.Position = 0;
+                    using (Image.Load<Rgba32>(stream))
+                    {
+                    }
                 }
             }
 
             for (var index = 0; index < LoadCount; index++)
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "100x75.png")))
+                using (var stream = File.OpenRead(Path.Combine("images", "100x75.png")))
                 {
+                    stream.Position = 0;
+                    using (Image.Load<Rgba32>(stream))
+                    {
+                    }
                 }
             }
 
             for (var index = 0; index < LoadCount; index++)
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "500x375.png")))
+                using (var stream = File.OpenRead(Path.Combine("images", "500x375.png")))
                 {
+                    stream.Position = 0;
+                    using (Image.Load<Rgba32>(stream))
+                    {
+                    }
                 }
             }
 
             for (var index = 0; index < LoadCount; index++)
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "200x150.png")))
+                using (var stream = File.OpenRead(Path.Combine("images", "200x150.png")))
                 {
+                    stream.Position = 0;
+                    using (Image.Load<Rgba32>(stream))
+                    {
+                    }
                 }
             }
 
             for (var index = 0; index < LoadCount; index++)
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "300x225.png")))
+                using (var stream = File.OpenRead(Path.Combine("images", "300x225.png")))
                 {
+                    stream.Position = 0;
+                    using (Image.Load<Rgba32>(stream))
+                    {
+                    }
                 }
             }
 
@@ -136,23 +170,47 @@ namespace VStore.UnitTests.ImageRendering
 
             var before = GC.GetTotalMemory(false);
 
-            using (Image.Load<Rgba32>(Path.Combine("images", "64x48.png")))
+            using (var stream1 = File.OpenRead(Path.Combine("images", "64x48.png")))
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "100x75.png")))
+                stream1.Position = 0;
+                using (Image.Load<Rgba32>(stream1))
                 {
-                    using (Image.Load<Rgba32>(Path.Combine("images", "500x375.png")))
+                    using (var stream2 = File.OpenRead(Path.Combine("images", "100x75.png")))
                     {
-                        using (Image.Load<Rgba32>(Path.Combine("images", "200x150.png")))
+                        stream2.Position = 0;
+                        using (Image.Load<Rgba32>(stream2))
                         {
-                            using (Image.Load<Rgba32>(Path.Combine("images", "300x225.png")))
+                            using (var stream3 = File.OpenRead(Path.Combine("images", "500x375.png")))
                             {
-                                using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
+                                stream3.Position = 0;
+                                using (Image.Load<Rgba32>(stream3))
                                 {
-                                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                                    var after = GC.GetTotalMemory(true);
+                                    using (var stream4 = File.OpenRead(Path.Combine("images", "200x150.png")))
+                                    {
+                                        stream4.Position = 0;
+                                        using (Image.Load<Rgba32>(stream4))
+                                        {
+                                            using (var stream5 = File.OpenRead(Path.Combine("images", "300x225.png")))
+                                            {
+                                                stream5.Position = 0;
+                                                using (Image.Load<Rgba32>(stream5))
+                                                {
+                                                    using (var stream6 = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+                                                    {
+                                                        stream6.Position = 0;
+                                                        using (Image.Load<Rgba32>(stream6))
+                                                        {
+                                                            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                                                            var after = GC.GetTotalMemory(true);
 
-                                    _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan80MbNested)}: {after - before} bytes allocated");
-                                    Assert.InRange(after - before, rentedMemory, memoryUpperBound);
+                                                            _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan80MbNested)}: {after - before} bytes allocated");
+                                                            Assert.InRange(after - before, rentedMemory, memoryUpperBound);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -175,25 +233,53 @@ namespace VStore.UnitTests.ImageRendering
 
             var before = GC.GetTotalMemory(false);
 
-            using (Image.Load<Rgba32>(Path.Combine("images", "64x48.png")))
+            using (var stream1 = File.OpenRead(Path.Combine("images", "64x48.png")))
             {
-                using (Image.Load<Rgba32>(Path.Combine("images", "100x75.png")))
+                stream1.Position = 0;
+                using (Image.Load<Rgba32>(stream1))
                 {
-                    using (Image.Load<Rgba32>(Path.Combine("images", "500x375.png")))
+                    using (var stream2 = File.OpenRead(Path.Combine("images", "100x75.png")))
                     {
-                        using (Image.Load<Rgba32>(Path.Combine("images", "200x150.png")))
+                        stream2.Position = 0;
+                        using (Image.Load<Rgba32>(stream2))
                         {
-                            using (Image.Load<Rgba32>(Path.Combine("images", "300x225.png")))
+                            using (var stream3 = File.OpenRead(Path.Combine("images", "500x375.png")))
                             {
-                                using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
+                                stream3.Position = 0;
+                                using (Image.Load<Rgba32>(stream3))
                                 {
-                                    using (Image.Load<Rgba32>(Path.Combine("images", "5000x3750.png")))
+                                    using (var stream4 = File.OpenRead(Path.Combine("images", "200x150.png")))
                                     {
-                                        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                                        var after = GC.GetTotalMemory(true);
+                                        stream4.Position = 0;
+                                        using (Image.Load<Rgba32>(stream4))
+                                        {
+                                            using (var stream5 = File.OpenRead(Path.Combine("images", "300x225.png")))
+                                            {
+                                                stream5.Position = 0;
+                                                using (Image.Load<Rgba32>(stream5))
+                                                {
+                                                    using (var stream6 = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+                                                    {
+                                                        stream6.Position = 0;
+                                                        using (Image.Load<Rgba32>(stream6))
+                                                        {
+                                                            using (var stream7 = File.OpenRead(Path.Combine("images", "5000x3750.png")))
+                                                            {
+                                                                stream7.Position = 0;
+                                                                using (Image.Load<Rgba32>(stream7))
+                                                                {
+                                                                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                                                                    var after = GC.GetTotalMemory(true);
 
-                                        _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan154MbNested)}: {after - before} bytes allocated");
-                                        Assert.InRange(after - before, memoryLowerBound, memoryUpperBound);
+                                                                    _output.WriteLine($"{nameof(ShouldBeAllocatedLessThan154MbNested)}: {after - before} bytes allocated");
+                                                                    Assert.InRange(after - before, memoryLowerBound, memoryUpperBound);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
