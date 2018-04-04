@@ -1,13 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
-using System.Threading.Tasks;
 
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
@@ -84,7 +83,7 @@ namespace CloningTool
             }
             catch (Exception ex)
             {
-                logger.LogCritical(new EventId(), ex, "Fatal error while cloning from {source} to {dest} in {mode} mode", sourceUri, destUri, options.Mode);
+                logger.LogCritical(default, ex, "Fatal error while cloning from {source} to {dest} in {mode} mode", sourceUri, destUri, options.Mode);
                 return 2;
             }
 

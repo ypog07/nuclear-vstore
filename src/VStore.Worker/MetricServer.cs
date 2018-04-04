@@ -13,28 +13,12 @@ namespace NuClear.VStore.Worker
 {
     internal class MetricServer : IMetricServer
     {
-        private IWebHost _host;
+        public const string DefaultPathBase = "/metrics";
+
         private readonly string _hostAddress;
         private readonly string _pathBase;
         private readonly ICollectorRegistry _registry;
-
-        public const string DefaultPathBase = "/metrics";
-
-        private MetricServer(IEnumerable<IOnDemandCollector> standardCollectors = null, ICollectorRegistry registry = null)
-        {
-            _registry = registry ?? CollectorRegistry.Instance;
-            if (_registry != CollectorRegistry.Instance)
-            {
-                return;
-            }
-
-            if (standardCollectors == null)
-            {
-                standardCollectors = new[] { new DotNetStatsCollector() };
-            }
-
-            CollectorRegistry.Instance.RegisterOnDemandCollectors(standardCollectors);
-        }
+        private IWebHost _host;
 
         public MetricServer(int port)
             : this("+", port, DefaultPathBase, null)
@@ -51,11 +35,12 @@ namespace NuClear.VStore.Worker
         {
         }
 
-        public MetricServer(string hostname,
-                            int port,
-                            string pathBase,
-                            IEnumerable<IOnDemandCollector> standardCollectors = null,
-                            ICollectorRegistry registry = null)
+        public MetricServer(
+            string hostname,
+            int port,
+            string pathBase,
+            IEnumerable<IOnDemandCollector> standardCollectors = null,
+            ICollectorRegistry registry = null)
             : this(standardCollectors, registry)
         {
             _pathBase = pathBase;
@@ -90,6 +75,22 @@ namespace NuClear.VStore.Worker
 
             _host.Dispose();
             _host = null;
+        }
+
+        private MetricServer(IEnumerable<IOnDemandCollector> standardCollectors = null, ICollectorRegistry registry = null)
+        {
+            _registry = registry ?? CollectorRegistry.Instance;
+            if (_registry != CollectorRegistry.Instance)
+            {
+                return;
+            }
+
+            if (standardCollectors == null)
+            {
+                standardCollectors = new[] { new DotNetStatsCollector() };
+            }
+
+            CollectorRegistry.Instance.RegisterOnDemandCollectors(standardCollectors);
         }
 
         internal class Startup : IStartup

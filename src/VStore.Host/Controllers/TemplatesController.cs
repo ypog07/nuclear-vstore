@@ -234,6 +234,15 @@ namespace NuClear.VStore.Host.Controllers
             return await ModifyInternal(id, ifMatch, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJson);
         }
 
+        private static JToken GenerateTemplateErrorJsonV10(TemplateValidationException ex) => new JArray { ex.SerializeToJsonV10() };
+
+        private static JToken GenerateTemplateErrorJson(TemplateValidationException ex) =>
+            new JObject
+                {
+                    { Tokens.ErrorsToken, new JArray() },
+                    { Tokens.ElementsToken, new JArray { ex.SerializeToJson() } }
+                };
+
         private async Task<IActionResult> CreateInternal(
             long id,
             string author,
@@ -331,14 +340,5 @@ namespace NuClear.VStore.Host.Controllers
                 return PreconditionFailed();
             }
         }
-
-        private static JToken GenerateTemplateErrorJsonV10(TemplateValidationException ex) => new JArray { ex.SerializeToJsonV10() };
-
-        private static JToken GenerateTemplateErrorJson(TemplateValidationException ex) =>
-            new JObject
-                {
-                    { Tokens.ErrorsToken, new JArray() },
-                    { Tokens.ElementsToken, new JArray { ex.SerializeToJson() } }
-                };
     }
 }

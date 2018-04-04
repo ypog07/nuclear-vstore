@@ -3,6 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>NuClear.VStore</RootNamespace>
     <LangVersion>latest</LangVersion>
+    <CodeAnalysisRuleSet>..\..\NuClear.CodeStyle.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" PrivateAssets="All"/>

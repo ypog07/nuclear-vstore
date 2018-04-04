@@ -16,7 +16,6 @@ namespace NuClear.VStore.Locks
 
         public DistributedLockManager(IDistributedLockFactory lockFactory, DistributedLockOptions lockOptions)
         {
-
             _lockFactory = lockFactory;
             _expiration = lockOptions.Expiration;
         }

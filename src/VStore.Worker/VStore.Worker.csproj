@@ -7,6 +7,7 @@
     <RuntimeIdentifiers>win10-x64;osx.10.12-x64</RuntimeIdentifiers>
     <TrimUnusedDependencies>true</TrimUnusedDependencies>
     <LangVersion>latest</LangVersion>
+    <CodeAnalysisRuleSet>..\..\NuClear.CodeStyle.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
     <None Update="appsettings.development.json">

@@ -28,9 +28,6 @@ namespace NuClear.VStore.ImageRendering
 {
     public sealed class ImagePreviewService
     {
-        private readonly string _bucketName;
-        private readonly TimeSpan _requestTimeout;
-
         private static readonly Dictionary<string, IImageEncoder> Encoders =
             new Dictionary<string, IImageEncoder>
                 {
@@ -38,6 +35,9 @@ namespace NuClear.VStore.ImageRendering
                     { ImageFormats.Png.DefaultMimeType, new PngEncoder { CompressionLevel = 1 } },
                     { ImageFormats.Gif.DefaultMimeType, new GifEncoder { IgnoreMetadata = true } }
                 };
+
+        private readonly string _bucketName;
+        private readonly TimeSpan _requestTimeout;
 
         private readonly IS3Client _s3Client;
         private readonly MemoryBasedRequestLimiter _requestLimiter;
@@ -99,33 +99,6 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-        private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
-            IImageElementValue imageElementValue,
-            int templateCode,
-            int width,
-            int height,
-            Action<Image<Rgba32>> mutateImage)
-        {
-            var cts = new CancellationTokenSource(_requestTimeout);
-
-            var rawStream = await GetRawStream(imageElementValue, cts.Token);
-
-            EnsureRequestCanBeProcessed(rawStream, cts.Token);
-
-            using (var source = Decode(templateCode, rawStream, out _))
-            {
-                using (var target = Crop(source, imageElementValue))
-                {
-                    Resize(target, new Size(width, height));
-                    mutateImage?.Invoke(target);
-
-                    var pngFormat = ImageFormats.Png;
-                    var targetStream = Encode(target, pngFormat);
-                    return (targetStream, pngFormat.DefaultMimeType);
-                }
-            }
-        }
-
         private static Image<Rgba32> Decode(int templateCode, Stream sourceStream, out IImageFormat imageFormat)
         {
             using (sourceStream)
@@ -177,10 +150,10 @@ namespace NuClear.VStore.ImageRendering
             var rightBottomPixel = image[imageRectangle.Right - 1, imageRectangle.Bottom - 1];
             var leftBottomPixel = image[imageRectangle.Left, imageRectangle.Bottom - 1];
 
-            if (ArePixelColorsClose(leftTopPixel, rightBottomPixel)  &&
+            if (ArePixelColorsClose(leftTopPixel, rightBottomPixel) &&
                 ArePixelColorsClose(rightTopPixel, rightBottomPixel) &&
                 ArePixelColorsClose(rightBottomPixel, leftBottomPixel) &&
-                ArePixelColorsClose(leftBottomPixel,leftTopPixel))
+                ArePixelColorsClose(leftBottomPixel, leftTopPixel))
             {
                 backgroundColor = leftTopPixel;
             }
@@ -272,15 +245,6 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-        private MemoryStream Encode(Image<Rgba32> image, IImageFormat format)
-        {
-            var imageStream = new MemoryStream();
-            image.Save(imageStream, Encoders[format.DefaultMimeType]);
-            imageStream.Position = 0;
-
-            return imageStream;
-        }
-
         private static void ApplyRoundedCorners(Image<Rgba32> image, float cornerRadius)
         {
             var corners = GetClippedRect(image.Width, image.Height, cornerRadius);
@@ -336,6 +300,42 @@ namespace NuClear.VStore.ImageRendering
 
         private static Rgb24 GetImagePixelColorOnRight(Image<Rgba32> image, int intervalCount, int index)
             => image[image.Width - 1, (image.Height - 1) * index / (2 * intervalCount)].Rgb;
+
+        private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
+            IImageElementValue imageElementValue,
+            int templateCode,
+            int width,
+            int height,
+            Action<Image<Rgba32>> mutateImage)
+        {
+            var cts = new CancellationTokenSource(_requestTimeout);
+
+            var rawStream = await GetRawStream(imageElementValue, cts.Token);
+
+            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+
+            using (var source = Decode(templateCode, rawStream, out _))
+            {
+                using (var target = Crop(source, imageElementValue))
+                {
+                    Resize(target, new Size(width, height));
+                    mutateImage?.Invoke(target);
+
+                    var pngFormat = ImageFormats.Png;
+                    var targetStream = Encode(target, pngFormat);
+                    return (targetStream, pngFormat.DefaultMimeType);
+                }
+            }
+        }
+
+        private MemoryStream Encode(Image<Rgba32> image, IImageFormat format)
+        {
+            var imageStream = new MemoryStream();
+            image.Save(imageStream, Encoders[format.DefaultMimeType]);
+            imageStream.Position = 0;
+
+            return imageStream;
+        }
 
         private async Task<MemoryStream> GetRawStream(IObjectElementRawValue imageElementValue, CancellationToken token)
         {
