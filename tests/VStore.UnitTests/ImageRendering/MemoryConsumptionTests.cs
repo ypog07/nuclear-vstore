@@ -25,9 +25,9 @@ namespace VStore.UnitTests.ImageRendering
         [Fact]
         public void ShouldBeAllocatedLessThan80Mb()
         {
+            var rentedMemory = GetApproximateRentedMemorySize();
             const int MemoryForPixels = 5000 * 3750 * 4;
             const double MemoryUpperBound = MemoryForPixels + MemoryForPixels * 0.05;
-            var rentedMemory = GetApproximateRentedMemorySize();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -292,7 +292,7 @@ namespace VStore.UnitTests.ImageRendering
         private static long GetApproximateRentedMemorySize()
         {
             const int MaxPoolSizeInBytes = 350 * 350 * 4;
-            const float FluctuationFactor = 1.7f;
+            const float FluctuationFactor = 1.8f;
 
             // NOTE: Subject to change!
             // Copy-pasted from https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/Utilities.cs#L13
