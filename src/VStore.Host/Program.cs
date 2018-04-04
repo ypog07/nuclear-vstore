@@ -7,8 +7,6 @@ using Microsoft.AspNetCore.Hosting;
 
 using Autofac.Extensions.DependencyInjection;
 
-
-
 using NuClear.VStore.Configuration;
 using NuClear.VStore.Host.Logging;
 

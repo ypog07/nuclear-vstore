@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/2gis/nuclear-vstore.svg?branch=master)](https://travis-ci.org/2gis/nuclear-vstore)
+
 To build image locally from PowerShell:
 
 ```
