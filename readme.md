@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/2gis/nuclear-vstore.svg?branch=master)](https://travis-ci.org/2gis/nuclear-vstore)
+[![Build Status](https://travis-ci.org/2gis/nuclear-vstore.svg?branch=master)](https://travis-ci.org/2gis/nuclear-vstore) [![codecov](https://codecov.io/gh/2gis/nuclear-vstore/branch/master/graph/badge.svg)](https://codecov.io/gh/2gis/nuclear-vstore)
 
 To build image locally from PowerShell:
 
