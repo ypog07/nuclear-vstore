@@ -15,9 +15,9 @@ namespace NuClear.VStore.Renderer.Controllers
     public sealed class RawsController : VStoreController
     {
         private readonly RawFileStorageInfoProvider _rawFileStorageInfoProvider;
-        private readonly ObjectsStorageReader _objectsStorageReader;
+        private readonly IObjectsStorageReader _objectsStorageReader;
 
-        public RawsController(RawFileStorageInfoProvider rawFileStorageInfoProvider, ObjectsStorageReader objectsStorageReader)
+        public RawsController(RawFileStorageInfoProvider rawFileStorageInfoProvider, IObjectsStorageReader objectsStorageReader)
         {
             _rawFileStorageInfoProvider = rawFileStorageInfoProvider;
             _objectsStorageReader = objectsStorageReader;

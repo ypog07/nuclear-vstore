@@ -16,8 +16,9 @@ namespace NuClear.VStore.Json
         {
             serializer.Converters.Remove(this);
 
-            var json = JObject.FromObject(value, serializer);
-            json.WriteTo(writer);
+            var persistenceDescriptor = (IObjectElementPersistenceDescriptor)value;
+            persistenceDescriptor.NormalizeValue();
+            serializer.Serialize(writer, persistenceDescriptor);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)

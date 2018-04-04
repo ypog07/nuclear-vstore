@@ -13,7 +13,7 @@ using NuClear.VStore.Options;
 
 namespace NuClear.VStore.Kafka
 {
-    public sealed class EventSender : IDisposable
+    public sealed class EventSender : IEventSender, IDisposable
     {
         private const int DefaultPartition = 0;
 
