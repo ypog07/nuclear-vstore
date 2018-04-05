@@ -74,7 +74,7 @@ namespace NuClear.VStore.Kafka
             catch (Exception ex)
             {
                 _logger.LogError(
-                    new EventId(),
+                    default,
                     ex,
                     "Error producing to Kafka. Topic: '{kafkaTopic}'. Message: {kafkaMessage}'.",
                     topic,

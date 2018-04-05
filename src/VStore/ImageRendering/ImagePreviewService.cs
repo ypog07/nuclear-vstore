@@ -15,9 +15,12 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Drawing;
+using SixLabors.ImageSharp.Processing.Overlays;
+using SixLabors.ImageSharp.Processing.Transforms;
+using SixLabors.ImageSharp.Processing.Transforms.Resamplers;
 using SixLabors.Primitives;
 using SixLabors.Shapes;
 
@@ -25,16 +28,16 @@ namespace NuClear.VStore.ImageRendering
 {
     public sealed class ImagePreviewService
     {
-        private readonly string _bucketName;
-        private readonly TimeSpan _requestTimeout;
-
         private static readonly Dictionary<string, IImageEncoder> Encoders =
             new Dictionary<string, IImageEncoder>
                 {
                     { ImageFormats.Jpeg.DefaultMimeType, new JpegEncoder { Quality = 100, IgnoreMetadata = true } },
-                    { ImageFormats.Png.DefaultMimeType, new PngEncoder { CompressionLevel = 1, IgnoreMetadata = true } },
+                    { ImageFormats.Png.DefaultMimeType, new PngEncoder { CompressionLevel = 1 } },
                     { ImageFormats.Gif.DefaultMimeType, new GifEncoder { IgnoreMetadata = true } }
                 };
+
+        private readonly string _bucketName;
+        private readonly TimeSpan _requestTimeout;
 
         private readonly IS3Client _s3Client;
         private readonly MemoryBasedRequestLimiter _requestLimiter;
@@ -88,38 +91,11 @@ namespace NuClear.VStore.ImageRendering
 
             using (var source = Decode(templateCode, rawStream, out var imageFormat))
             {
-                var anchorPosition = EvaluateAnchorPosition(imageElementValue);
-                Resize(source, new Size(width, height), anchorPosition);
+                var anchorPositionMode = EvaluateAnchorPositionMode(imageElementValue);
+                Resize(source, new Size(width, height), anchorPositionMode);
 
                 var targetStream = Encode(source, imageFormat);
                 return (targetStream, imageFormat.DefaultMimeType);
-            }
-        }
-
-        private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
-            IImageElementValue imageElementValue,
-            int templateCode,
-            int width,
-            int height,
-            Action<Image<Rgba32>> mutateImage)
-        {
-            var cts = new CancellationTokenSource(_requestTimeout);
-
-            var rawStream = await GetRawStream(imageElementValue, cts.Token);
-
-            EnsureRequestCanBeProcessed(rawStream, cts.Token);
-
-            using (var source = Decode(templateCode, rawStream, out _))
-            {
-                using (var target = Crop(source, imageElementValue))
-                {
-                    Resize(target, new Size(width, height));
-                    mutateImage?.Invoke(target);
-
-                    var pngFormat = ImageFormats.Png;
-                    var targetStream = Encode(target, pngFormat);
-                    return (targetStream, pngFormat.DefaultMimeType);
-                }
             }
         }
 
@@ -174,10 +150,10 @@ namespace NuClear.VStore.ImageRendering
             var rightBottomPixel = image[imageRectangle.Right - 1, imageRectangle.Bottom - 1];
             var leftBottomPixel = image[imageRectangle.Left, imageRectangle.Bottom - 1];
 
-            if (ArePixelColorsClose(leftTopPixel, rightBottomPixel)  &&
+            if (ArePixelColorsClose(leftTopPixel, rightBottomPixel) &&
                 ArePixelColorsClose(rightTopPixel, rightBottomPixel) &&
                 ArePixelColorsClose(rightBottomPixel, leftBottomPixel) &&
-                ArePixelColorsClose(leftBottomPixel,leftTopPixel))
+                ArePixelColorsClose(leftBottomPixel, leftTopPixel))
             {
                 backgroundColor = leftTopPixel;
             }
@@ -210,7 +186,7 @@ namespace NuClear.VStore.ImageRendering
 
             var extentImage = new Image<Rgba32>(unionRectangle.Width, unionRectangle.Height);
             extentImage.Mutate(x => x.BackgroundColor(backgroundColor)
-                                     .DrawImage(image, image.Size(), new Point(-unionRectangle.X, -unionRectangle.Y), GraphicsOptions.Default)
+                                     .DrawImage(GraphicsOptions.Default, image, new Point(-unionRectangle.X, -unionRectangle.Y))
                                      .Crop(cropAreaRectangle));
 
             return extentImage;
@@ -226,69 +202,61 @@ namespace NuClear.VStore.ImageRendering
                 }));
         }
 
-        private static void Resize(Image<Rgba32> image, Size size, AnchorPosition anchorPosition)
+        private static void Resize(Image<Rgba32> image, Size size, AnchorPositionMode anchorPositionModel)
         {
             image.Mutate(ctx => ctx.Resize(new ResizeOptions
                 {
                     Size = size,
                     Sampler = new Lanczos2Resampler(),
                     Mode = ResizeMode.Crop,
-                    Position = anchorPosition
+                    Position = anchorPositionModel
                 }));
         }
 
-        private static AnchorPosition EvaluateAnchorPosition(IImageElementValue imageElementValue)
+        private static AnchorPositionMode EvaluateAnchorPositionMode(IImageElementValue imageElementValue)
         {
             if (!(imageElementValue is IScalableBitmapImageElementValue scalableBitmapImageElementValue))
             {
-                return AnchorPosition.Center;
+                return AnchorPositionMode.Center;
             }
 
             switch (scalableBitmapImageElementValue.Anchor)
             {
                 case Anchor.TopLeft:
-                    return AnchorPosition.TopLeft;
+                    return AnchorPositionMode.TopLeft;
                 case Anchor.Top:
-                    return AnchorPosition.Top;
+                    return AnchorPositionMode.Top;
                 case Anchor.TopRight:
-                    return AnchorPosition.TopRight;
+                    return AnchorPositionMode.TopRight;
                 case Anchor.Left:
-                    return AnchorPosition.Left;
+                    return AnchorPositionMode.Left;
                 case Anchor.Middle:
-                    return AnchorPosition.Center;
+                    return AnchorPositionMode.Center;
                 case Anchor.Right:
-                    return AnchorPosition.Right;
+                    return AnchorPositionMode.Right;
                 case Anchor.BottomLeft:
-                    return AnchorPosition.BottomLeft;
+                    return AnchorPositionMode.BottomLeft;
                 case Anchor.Bottom:
-                    return AnchorPosition.Bottom;
+                    return AnchorPositionMode.Bottom;
                 case Anchor.BottomRight:
-                    return AnchorPosition.BottomRight;
+                    return AnchorPositionMode.BottomRight;
                 default:
-                    return AnchorPosition.Center;
+                    return AnchorPositionMode.Center;
             }
-        }
-
-        private MemoryStream Encode(Image<Rgba32> image, IImageFormat format)
-        {
-            var imageStream = new MemoryStream();
-            image.Save(imageStream, Encoders[format.DefaultMimeType]);
-            imageStream.Position = 0;
-
-            return imageStream;
         }
 
         private static void ApplyRoundedCorners(Image<Rgba32> image, float cornerRadius)
         {
             var corners = GetClippedRect(image.Width, image.Height, cornerRadius);
-            image.Mutate(ctx => ctx.Fill(Rgba32.Transparent,
-                                         corners,
-                                         new GraphicsOptions { BlenderMode = PixelBlenderMode.Src, Antialias = false }));
+            image.Mutate(ctx => ctx.Fill(
+                             new GraphicsOptions { BlenderMode = PixelBlenderMode.Src, Antialias = false },
+                             Rgba32.Transparent,
+                             corners));
         }
 
         private static IPath GetClippedRect(int imageWidth, int imageHeight, float cornerRadius)
         {
-            var rect = new RectangularePolygon(-0.5f, -0.5f, imageWidth + 0.5f, imageHeight + 0.5f);
+            var rect = new RectangularPolygon(-0.5f, -0.5f, imageWidth + 0.5f, imageHeight + 0.5f);
             return rect.Clip(new EllipsePolygon(imageWidth * 0.5f, imageHeight * 0.5f, cornerRadius));
         }
 
@@ -332,6 +300,42 @@ namespace NuClear.VStore.ImageRendering
 
         private static Rgb24 GetImagePixelColorOnRight(Image<Rgba32> image, int intervalCount, int index)
             => image[image.Width - 1, (image.Height - 1) * index / (2 * intervalCount)].Rgb;
+
+        private async Task<(Stream imageStream, string contentType)> GetPngEncodedPreview(
+            IImageElementValue imageElementValue,
+            int templateCode,
+            int width,
+            int height,
+            Action<Image<Rgba32>> mutateImage)
+        {
+            var cts = new CancellationTokenSource(_requestTimeout);
+
+            var rawStream = await GetRawStream(imageElementValue, cts.Token);
+
+            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+
+            using (var source = Decode(templateCode, rawStream, out _))
+            {
+                using (var target = Crop(source, imageElementValue))
+                {
+                    Resize(target, new Size(width, height));
+                    mutateImage?.Invoke(target);
+
+                    var pngFormat = ImageFormats.Png;
+                    var targetStream = Encode(target, pngFormat);
+                    return (targetStream, pngFormat.DefaultMimeType);
+                }
+            }
+        }
+
+        private MemoryStream Encode(Image<Rgba32> image, IImageFormat format)
+        {
+            var imageStream = new MemoryStream();
+            image.Save(imageStream, Encoders[format.DefaultMimeType]);
+            imageStream.Position = 0;
+
+            return imageStream;
+        }
 
         private async Task<MemoryStream> GetRawStream(IObjectElementRawValue imageElementValue, CancellationToken token)
         {

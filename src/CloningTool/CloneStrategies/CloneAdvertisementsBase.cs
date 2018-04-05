@@ -116,7 +116,7 @@ namespace CloningTool.CloneStrategies
                                                     catch (Exception ex)
                                                     {
                                                         failedAds.Add(advertisement);
-                                                        _logger.LogError(new EventId(), ex, "Advertisement {id} cloning error", advertisement.Id);
+                                                        _logger.LogError(default, ex, "Advertisement {id} cloning error", advertisement.Id);
                                                     }
                                                 });
 
@@ -193,7 +193,7 @@ namespace CloningTool.CloneStrategies
                                                         catch (Exception ex)
                                                         {
                                                             hasFailed = true;
-                                                            _logger.LogError(new EventId(), ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
+                                                            _logger.LogError(default, ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
                                                             await Task.Delay(200);
                                                         }
                                                     }
@@ -251,7 +251,7 @@ namespace CloningTool.CloneStrategies
                 }
                 catch (ObjectAlreadyExistsException ex)
                 {
-                    _logger.LogWarning(new EventId(), ex, "Object {id} already exists in destination, try to continue execution", objectId);
+                    _logger.LogWarning(default, ex, "Object {id} already exists in destination, try to continue execution", objectId);
                 }
             }
 

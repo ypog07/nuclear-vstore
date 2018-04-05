@@ -58,14 +58,14 @@ namespace NuClear.VStore.Kafka
 #else
                     { "log.connection.close", false },
 #endif
-                {
-                        "default.topic.config",
-                        new Dictionary<string, object>
-                            {
-                                { "auto.offset.reset", "beginning" }
-                            }
-                    }
-                };
+                    {
+                            "default.topic.config",
+                            new Dictionary<string, object>
+                                {
+                                    { "auto.offset.reset", "beginning" }
+                                }
+                        }
+                    };
 
         private void OnLog(object sender, LogMessage logMessage)
             => _logger.LogDebug(

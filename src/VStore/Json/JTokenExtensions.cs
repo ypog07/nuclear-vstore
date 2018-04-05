@@ -36,25 +36,27 @@ namespace NuClear.VStore.Json
                 case ElementDescriptorType.Color:
                     return valueToken.ToObject<ColorElementValue>();
                 case ElementDescriptorType.CompositeBitmapImage:
-                {
-                    var value = valueToken.ToObject<CompositeBitmapImageElementValue>();
-                    if (value.SizeSpecificImages == null)
                     {
-                        value.SizeSpecificImages = Enumerable.Empty<SizeSpecificImage>();
+                        var value = valueToken.ToObject<CompositeBitmapImageElementValue>();
+                        if (value.SizeSpecificImages == null)
+                        {
+                            value.SizeSpecificImages = Enumerable.Empty<SizeSpecificImage>();
+                        }
+
+                        return value;
                     }
 
-                    return value;
-                }
                 case ElementDescriptorType.ScalableBitmapImage:
-                {
-                    var value = valueToken.ToObject<ScalableBitmapImageElementValue>();
-                    if (!Enum.IsDefined(typeof(Anchor), value.Anchor))
                     {
-                        value.Anchor = DefaultAnchor;
+                        var value = valueToken.ToObject<ScalableBitmapImageElementValue>();
+                        if (!Enum.IsDefined(typeof(Anchor), value.Anchor))
+                        {
+                            value.Anchor = DefaultAnchor;
+                        }
+
+                        return value;
                     }
 
-                    return value;
-                }
                 default:
                     throw new JsonSerializationException($"Unknown element type '{elementDescriptorType.ToString()}'");
             }

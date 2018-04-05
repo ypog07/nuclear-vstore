@@ -88,7 +88,7 @@ namespace CloningTool.CloneStrategies
                                                     catch (Exception ex)
                                                     {
                                                         failedIds.Add(template.Id);
-                                                        _logger.LogError(new EventId(), ex, "Template cloning error: {template}", template);
+                                                        _logger.LogError(default, ex, "Template cloning error: {template}", template);
                                                     }
                                                 });
 

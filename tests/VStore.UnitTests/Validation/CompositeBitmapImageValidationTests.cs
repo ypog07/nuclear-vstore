@@ -7,6 +7,7 @@ using NuClear.VStore.Sessions.ContentValidation.Errors;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
 
 using Xunit;
 

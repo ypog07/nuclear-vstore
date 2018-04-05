@@ -84,7 +84,7 @@ namespace CloningTool.CloneStrategies
                                                     catch (Exception ex)
                                                     {
                                                         failedIds.Add(position.Id);
-                                                        _logger.LogError(new EventId(), ex, "Position link cloning error: {position}", position);
+                                                        _logger.LogError(default, ex, "Position link cloning error: {position}", position);
                                                     }
                                                 });
 

@@ -463,7 +463,7 @@ namespace VStore.UnitTests.Persistence
 
             var elementContent = requests[0].ContentBody;
             var elementJson = JObject.Parse(elementContent);
-            Assert.Equal(elementJson["value"]["raw"], "Text");
+            Assert.Equal("Text", elementJson["value"]["raw"]);
         }
 
         [Fact]
@@ -551,7 +551,7 @@ namespace VStore.UnitTests.Persistence
             var elementJson = JObject.Parse(elementContent);
             var valueJson = elementJson["value"];
 
-            Assert.Equal(valueJson["raw"], fileKey);
+            Assert.Equal(fileKey, valueJson["raw"]);
             Assert.NotNull(valueJson["filename"]);
             Assert.NotNull(valueJson["filesize"]);
             Assert.NotNull(valueJson["cropArea"]);
@@ -732,10 +732,10 @@ namespace VStore.UnitTests.Persistence
             var elementJson = JObject.Parse(elementContent);
             var valueJson = elementJson["value"];
 
-            Assert.Equal(valueJson["raw"], fileKey);
+            Assert.Equal(fileKey, valueJson["raw"]);
             Assert.NotNull(valueJson["filename"]);
             Assert.NotNull(valueJson["filesize"]);
-            Assert.Equal(valueJson["anchor"], nameof(Anchor.Middle).ToLower());
+            Assert.Equal(nameof(Anchor.Middle).ToLower(), valueJson["anchor"]);
         }
     }
 }

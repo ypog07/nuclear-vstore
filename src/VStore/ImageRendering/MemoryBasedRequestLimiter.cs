@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime;
 using System.Threading;
 
 using NuClear.VStore.Options;
@@ -7,12 +8,13 @@ namespace NuClear.VStore.ImageRendering
 {
     public sealed class MemoryBasedRequestLimiter
     {
+        private const float ThresholdFactor = 0.4f;
         private readonly object _syncRoot = new object();
         private readonly int _memoryToAllocateThreshold;
 
         public MemoryBasedRequestLimiter(ThrottlingOptions throttlingOptions)
         {
-            _memoryToAllocateThreshold = (int)(0.5 * throttlingOptions.MemoryLimit);
+            _memoryToAllocateThreshold = (int)(ThresholdFactor * throttlingOptions.MemoryLimit);
         }
 
         public void HandleRequest(int requiredMemoryInBytes, CancellationToken cancellationToken)
@@ -22,6 +24,7 @@ namespace NuClear.VStore.ImageRendering
                 var managedMemory = GC.GetTotalMemory(false);
                 if (managedMemory + requiredMemoryInBytes > _memoryToAllocateThreshold)
                 {
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                     managedMemory = GC.GetTotalMemory(true);
                     if (managedMemory + requiredMemoryInBytes > _memoryToAllocateThreshold)
                     {
