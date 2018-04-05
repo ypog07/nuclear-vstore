@@ -38,7 +38,7 @@ namespace CloningTool.Json
                 throw new JsonSerializationException($"Template element with template code '{innerValue.TemplateCode}' has empty '{Tokens.PlacementToken}' property.");
             }
 
-            return new ApiTemplateElementDescriptor(innerValue.Type, innerValue.TemplateCode, innerValue.Properties, innerValue.Constraints, new PlacementDescriptor());
+            return new ApiTemplateElementDescriptor(innerValue.Type, innerValue.TemplateCode, innerValue.Properties, innerValue.Constraints, placement);
         }
     }
 }
