@@ -89,7 +89,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while advertisement {id} creating with response: {response}",
                                  requestId,
@@ -100,7 +100,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Advertisement {id} creating error with response: {response}", amId, stringResponse);
+                _logger.LogError(default, ex, "Advertisement {id} creating error with response: {response}", amId, stringResponse);
                 throw;
             }
         }
@@ -140,7 +140,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting advertisement {id} with response: {response}",
                                  requestId,
@@ -151,7 +151,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Getting advertisement {id} error", amId);
+                _logger.LogError(default, ex, "Getting advertisement {id} error", amId);
                 throw;
             }
         }
@@ -192,7 +192,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while updating advertisement {id} with response: {response}",
                                  requestId,
@@ -203,7 +203,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Advertisement {id} update error", advertisementId);
+                _logger.LogError(default, ex, "Advertisement {id} update error", advertisementId);
                 throw;
             }
         }
@@ -233,7 +233,7 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(new EventId(),
+                    _logger.LogError(default,
                                      ex,
                                      "Request {requestId} to server {server} error while getting new object for template {id} and lang {lang} with response: {response}",
                                      requestId,
@@ -245,7 +245,7 @@ namespace CloningTool.RestClient
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(new EventId(), ex, "Get new object for template {id} and lang {lang} error", templateId, langCode);
+                    _logger.LogError(default, ex, "Get new object for template {id} and lang {lang} error", templateId, langCode);
                     throw;
                 }
             }
@@ -298,7 +298,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting advertisements with response: {response}",
                                  requestId,
@@ -308,7 +308,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Get advertisements error");
+                _logger.LogError(default, ex, "Get advertisements error");
                 throw;
             }
         }
@@ -356,7 +356,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting advertisements with response: {response}",
                                  requestId,
@@ -366,7 +366,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Get advertisements error");
+                _logger.LogError(default, ex, "Get advertisements error");
                 throw;
             }
         }
@@ -390,7 +390,7 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(new EventId(),
+                    _logger.LogError(default,
                                      ex,
                                      "Request {requestId} to server {server} error while selecting object {objectId} to whitelist with response: {response}",
                                      requestId,
@@ -401,7 +401,7 @@ namespace CloningTool.RestClient
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(new EventId(), ex, "Error while selecting object {objectId} to whitelist", advertisementId);
+                    _logger.LogError(default, ex, "Error while selecting object {objectId} to whitelist", advertisementId);
                     throw;
                 }
             }
@@ -429,7 +429,7 @@ namespace CloningTool.RestClient
                     }
                     catch (HttpRequestException ex)
                     {
-                        _logger.LogError(new EventId(),
+                        _logger.LogError(default,
                                          ex,
                                          "Request {requestId} to server {server} error while updating object {objectId} moderation status {status} with response: {response}",
                                          requestId,
@@ -441,7 +441,7 @@ namespace CloningTool.RestClient
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(new EventId(), ex, "Error while updating object {objectId} moderation status {status}", objectId, moderationResult.Status);
+                        _logger.LogError(default, ex, "Error while updating object {objectId} moderation status {status}", objectId, moderationResult.Status);
                         throw;
                     }
                 }
@@ -476,7 +476,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while creating template {id} with response: {response}",
                                  requestId,
@@ -487,7 +487,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Template {id} creating error", templateId);
+                _logger.LogError(default, ex, "Template {id} creating error", templateId);
                 throw;
             }
         }
@@ -533,7 +533,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting templates with response: {response}",
                                  requestId,
@@ -543,7 +543,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Get templates error");
+                _logger.LogError(default, ex, "Get templates error");
                 throw;
             }
         }
@@ -578,7 +578,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting template {id} with response: {response}",
                                  requestId,
@@ -589,7 +589,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Get template {id} error", templateId);
+                _logger.LogError(default, ex, "Get template {id} error", templateId);
                 throw;
             }
         }
@@ -625,7 +625,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while updating template {id} with response: {response}",
                                  requestId,
@@ -636,7 +636,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Template {id} update error", templateId);
+                _logger.LogError(default, ex, "Template {id} update error", templateId);
                 throw;
             }
         }
@@ -682,7 +682,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(new EventId(),
+                _logger.LogError(default,
                                  ex,
                                  "Request {requestId} to server {server} error while getting positions with response: {response}",
                                  requestId,
@@ -692,7 +692,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(new EventId(), ex, "Get positions error");
+                _logger.LogError(default, ex, "Get positions error");
                 throw;
             }
         }
@@ -716,7 +716,7 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(new EventId(),
+                    _logger.LogError(default,
                                      ex,
                                      "Request {requestId} to server {server} error while creating link between position {positionId} and template {templateId} with response: {response}",
                                      requestId,
@@ -728,7 +728,7 @@ namespace CloningTool.RestClient
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(new EventId(), ex, "Error while creating link between position {positionId} and template {templateId}", positionId, templateId);
+                    _logger.LogError(default, ex, "Error while creating link between position {positionId} and template {templateId}", positionId, templateId);
                     throw;
                 }
             }
@@ -754,7 +754,7 @@ namespace CloningTool.RestClient
             catch (Exception ex)
             {
                 _logger.LogError(
-                    new EventId(),
+                    default,
                     ex,
                     "File within advertisement {amId} download error from {url}, response: {response}",
                     advertisementId,
@@ -808,7 +808,7 @@ namespace CloningTool.RestClient
             catch (Exception ex)
             {
                 _logger.LogError(
-                    new EventId(),
+                    default,
                     ex,
                     "File {fileName} within advertisement {objectId} upload error to {url}, response: {response}",
                     fileName,
@@ -840,7 +840,7 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogWarning(new EventId(), ex, "Attempt {try} failed while connecting", tryNum);
+                    _logger.LogWarning(default, ex, "Attempt {try} failed while connecting", tryNum);
                 }
             }
             while (!succeeded && tryNum < pingTries);

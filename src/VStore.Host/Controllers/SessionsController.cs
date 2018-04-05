@@ -183,8 +183,7 @@ namespace NuClear.VStore.Host.Controllers
             Guid sessionId,
             int templateCode,
             [FromHeader(Name = Http.HeaderNames.AmsFileType)] string rawFileType,
-            [FromHeader(Name = Http.HeaderNames.AmsImageSize)] string rawImageSize
-        )
+            [FromHeader(Name = Http.HeaderNames.AmsImageSize)] string rawImageSize)
         {
             var multipartBoundary = Request.GetMultipartBoundary();
             if (string.IsNullOrEmpty(multipartBoundary))

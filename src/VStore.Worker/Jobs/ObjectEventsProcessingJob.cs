@@ -126,7 +126,7 @@ namespace NuClear.VStore.Worker.Jobs
                                          break;
                                      default:
                                          logger.LogError(
-                                             new EventId(),
+                                             default,
                                              ex,
                                              "{taskName}: Unexpected error occurred: {errorMessage}.",
                                              taskName,

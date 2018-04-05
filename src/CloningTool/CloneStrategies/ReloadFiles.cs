@@ -112,7 +112,7 @@ namespace CloningTool.CloneStrategies
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(new EventId(), ex, "Error with advertisement {id}", id);
+                    _logger.LogError(default, ex, "Error with advertisement {id}", id);
                 }
             }
 

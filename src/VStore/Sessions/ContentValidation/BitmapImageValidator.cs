@@ -8,6 +8,7 @@ using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Sessions.ContentValidation.Errors;
 
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace NuClear.VStore.Sessions.ContentValidation
 {

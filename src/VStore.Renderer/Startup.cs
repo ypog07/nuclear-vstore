@@ -83,6 +83,8 @@ namespace NuClear.VStore.Renderer
                         options.OperationFilter<UploadFileOperationFilter>();
                         options.OperationFilter<ViewFileFilter>();
                     });
+
+            SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
         }
 
         public void ConfigureContainer(ContainerBuilder builder)

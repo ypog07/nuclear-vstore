@@ -2,7 +2,7 @@
 {
     public struct ImageSize
     {
-        public static ImageSize Empty { get; } = new ImageSize();
+        public static ImageSize Empty { get; } = default;
 
         public int Width { get; set; }
 
