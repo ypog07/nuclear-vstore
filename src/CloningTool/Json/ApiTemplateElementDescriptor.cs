@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 
 namespace CloningTool.Json
 {
-    public sealed class ApiTemplateElementDescriptor
+    public sealed class ApiTemplateElementDescriptor : ITemplateElementDescriptor
     {
         public ApiTemplateElementDescriptor(ElementDescriptorType descriptorType, int templateCode, JObject properties, ConstraintSet constraintSet, PlacementDescriptor placement)
         {

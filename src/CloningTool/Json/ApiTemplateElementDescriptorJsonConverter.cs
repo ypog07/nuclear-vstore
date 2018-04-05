@@ -1,156 +1,44 @@
 ﻿using System;
-using System.Collections.Generic;
 
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
-using NuClear.VStore.Descriptors;
-using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Json;
 
 namespace CloningTool.Json
 {
-    public class ApiTemplateElementDescriptorJsonConverter : JsonConverter<ApiTemplateElementDescriptor>
+    public class ApiTemplateElementDescriptorJsonConverter : JsonConverter<ITemplateElementDescriptor>
     {
+        private readonly ElementDescriptorJsonConverter _innerElementConverter;
+
+        public ApiTemplateElementDescriptorJsonConverter()
+        {
+            _innerElementConverter = new ElementDescriptorJsonConverter();
+        }
+
         public override bool CanWrite => false;
 
-        public override void WriteJson(JsonWriter writer, ApiTemplateElementDescriptor value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, ITemplateElementDescriptor value, JsonSerializer serializer)
         {
             throw new NotSupportedException();
         }
 
-        public override ApiTemplateElementDescriptor ReadJson(JsonReader reader, Type objectType, ApiTemplateElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override ITemplateElementDescriptor ReadJson(JsonReader reader, Type objectType, ITemplateElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            JObject obj;
-            try
-            {
-                obj = JObject.Load(reader);
-            }
-            catch (JsonReaderException ex)
-            {
-                throw new JsonSerializationException("Template element descriptor is not a valid JSON", ex);
-            }
+            var innerValue = _innerElementConverter.ReadJson(reader, objectType, existingValue, hasExistingValue, serializer);
 
-            var typeToken = obj[Tokens.TypeToken];
-            if (typeToken == null)
-            {
-                throw new JsonSerializationException($"Some template element doesn't contain '{Tokens.TypeToken}' property.");
-            }
-
-            var type = typeToken.ToString();
-            if (!Enum.TryParse<ElementDescriptorType>(type, true, out var descriptorType) ||
-                !Enum.IsDefined(typeof(ElementDescriptorType), descriptorType))
-            {
-                throw new JsonSerializationException($"Some template element has incorrect type '{type}'.");
-            }
-
-            return DeserializeElementDescriptor(obj, descriptorType);
-        }
-
-        private static ApiTemplateElementDescriptor DeserializeElementDescriptor(JToken token, ElementDescriptorType descriptorType)
-        {
-            var templateCodeToken = token[Tokens.TemplateCodeToken];
-            if (templateCodeToken == null)
-            {
-                throw new JsonSerializationException($"Some template element of type '{descriptorType.ToString()}' doesn't contain '{Tokens.TemplateCodeToken}' property.");
-            }
-
-            var templateCode = templateCodeToken.ToObject<int>();
-            var propertiesToken = token[Tokens.PropertiesToken];
-            if (propertiesToken == null)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' doesn't contain '{Tokens.PropertiesToken}' property.");
-            }
-
-            var properties = (JObject)propertiesToken;
-            var constraintSet = token[Tokens.ConstraintsToken];
-            if (constraintSet == null)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' doesn't contain '{Tokens.ConstraintsToken}' property.");
-            }
-
-            var placementToken = token[Tokens.PlacementToken];
+            var placementToken = _innerElementConverter.LoadedObject[Tokens.PlacementToken];
             if (placementToken == null)
             {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' doesn't contain '{Tokens.PlacementToken}' property.");
+                throw new JsonSerializationException($"Template element with template code '{innerValue.TemplateCode}' doesn't contain '{Tokens.PlacementToken}' property.");
             }
 
             var placement = placementToken.ToObject<PlacementDescriptor>();
             if (placement == null)
             {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' has empty '{Tokens.PlacementToken}' property.");
+                throw new JsonSerializationException($"Template element with template code '{innerValue.TemplateCode}' has empty '{Tokens.PlacementToken}' property.");
             }
 
-            return new ApiTemplateElementDescriptor(descriptorType, templateCode, properties, DeserializeConstraintSet(templateCode, constraintSet, descriptorType), placement);
-        }
-
-        private static ConstraintSet DeserializeConstraintSet(int templateCode, JToken token, ElementDescriptorType descriptorType)
-        {
-            var constraintSetItems = new List<ConstraintSetItem>();
-            foreach (var item in token)
-            {
-                if (item.Type != JTokenType.Property)
-                {
-                    throw new JsonSerializationException($"Template element with template code '{templateCode}' has malformed constraints.");
-                }
-
-                var property = (JProperty)item;
-                if (!Enum.TryParse<Language>(property.Name, true, out var language) ||
-                    !Enum.IsDefined(typeof(Language), language))
-                {
-                    throw new JsonSerializationException($"Template element with template code '{templateCode}' has incorrect constraint language '{property.Name}'.");
-                }
-
-                IElementConstraints constraints;
-                switch (descriptorType)
-                {
-                    case ElementDescriptorType.PlainText:
-                        constraints = property.Value.ToObject<PlainTextElementConstraints>();
-                        break;
-                    case ElementDescriptorType.FormattedText:
-                        constraints = property.Value.ToObject<FormattedTextElementConstraints>();
-                        break;
-                    case ElementDescriptorType.BitmapImage:
-                        constraints = property.Value.ToObject<BitmapImageElementConstraints>();
-                        break;
-                    case ElementDescriptorType.VectorImage:
-                        constraints = property.Value.ToObject<VectorImageElementConstraints>();
-                        break;
-                    case ElementDescriptorType.Article:
-                        constraints = property.Value.ToObject<ArticleElementConstraints>();
-                        break;
-                    case ElementDescriptorType.FasComment:
-                        constraints = property.Value.ToObject<PlainTextElementConstraints>();
-                        break;
-                    case ElementDescriptorType.Link:
-                    case ElementDescriptorType.VideoLink:
-                        constraints = property.Value.ToObject<LinkElementConstraints>();
-                        break;
-                    case ElementDescriptorType.Phone:
-                        constraints = property.Value.ToObject<PhoneElementConstraints>();
-                        break;
-                    case ElementDescriptorType.Color:
-                        constraints = property.Value.ToObject<ColorElementConstraints>();
-                        break;
-                    case ElementDescriptorType.CompositeBitmapImage:
-                        constraints = property.Value.ToObject<CompositeBitmapImageElementConstraints>();
-                        break;
-                    case ElementDescriptorType.ScalableBitmapImage:
-                        constraints = property.Value.ToObject<ScalableBitmapImageElementConstraints>();
-                        break;
-                    default:
-                        throw new JsonSerializationException($"Template element with template code '{templateCode}' has unknown type {descriptorType.ToString()}.");
-                }
-
-                constraintSetItems.Add(new ConstraintSetItem(language, constraints));
-            }
-
-            if (constraintSetItems.Count < 1)
-            {
-                throw new JsonSerializationException($"Template element with template code '{templateCode}' has no constraints.");
-            }
-
-            return new ConstraintSet(constraintSetItems);
+            return new ApiTemplateElementDescriptor(innerValue.Type, innerValue.TemplateCode, innerValue.Properties, innerValue.Constraints, new PlacementDescriptor());
         }
     }
 }
