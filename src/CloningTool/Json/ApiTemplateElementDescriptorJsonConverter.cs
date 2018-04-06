@@ -8,13 +8,6 @@ namespace CloningTool.Json
 {
     public class ApiTemplateElementDescriptorJsonConverter : JsonConverter<ITemplateElementDescriptor>
     {
-        private readonly ElementDescriptorJsonConverter _innerElementConverter;
-
-        public ApiTemplateElementDescriptorJsonConverter()
-        {
-            _innerElementConverter = new ElementDescriptorJsonConverter();
-        }
-
         public override bool CanWrite => false;
 
         public override void WriteJson(JsonWriter writer, ITemplateElementDescriptor value, JsonSerializer serializer)
@@ -24,9 +17,10 @@ namespace CloningTool.Json
 
         public override ITemplateElementDescriptor ReadJson(JsonReader reader, Type objectType, ITemplateElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            var innerValue = _innerElementConverter.ReadJson(reader, objectType, existingValue, hasExistingValue, serializer);
+            var innerElementConverter = new ElementDescriptorJsonConverter();
+            var innerValue = innerElementConverter.ReadJson(reader, objectType, existingValue, hasExistingValue, serializer);
 
-            var placementToken = _innerElementConverter.LoadedObject[Tokens.PlacementToken];
+            var placementToken = innerElementConverter.LoadedObject[Tokens.PlacementToken];
             if (placementToken == null)
             {
                 throw new JsonSerializationException($"Template element with template code '{innerValue.TemplateCode}' doesn't contain '{Tokens.PlacementToken}' property.");
