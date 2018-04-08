@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace NuClear.VStore.Http.Core.ActionResults
 {
-    public sealed class TooManyRequestsResult: StatusCodeResult
+    public sealed class TooManyRequestsResult : StatusCodeResult
     {
         public TooManyRequestsResult(TimeSpan retryAfter) : base(429)
         {

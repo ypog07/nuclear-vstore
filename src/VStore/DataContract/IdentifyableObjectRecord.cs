@@ -25,7 +25,7 @@ namespace NuClear.VStore.DataContract
                 return false;
             }
 
-            if (Object.ReferenceEquals(this, other))
+            if (object.ReferenceEquals(this, other))
             {
                 return true;
             }

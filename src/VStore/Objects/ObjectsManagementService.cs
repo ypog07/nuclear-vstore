@@ -385,38 +385,40 @@ namespace NuClear.VStore.Objects
             switch (binaryElementValue)
             {
                 case ICompositeBitmapImageElementValue compositeBitmapImageElementValue:
-                {
-                    var sizeSpecificImages =
-                        compositeBitmapImageElementValue.SizeSpecificImages
-                                                        .Select(image =>
-                                                                    {
-                                                                        var imageMetadata = metadataForBinaries[image.Raw];
-                                                                        return new CompositeBitmapImageElementPersistenceValue.SizeSpecificImage
-                                                                            {
-                                                                                Filename = imageMetadata.Filename,
-                                                                                Filesize = imageMetadata.Filesize,
-                                                                                Raw = image.Raw,
-                                                                                Size = image.Size
-                                                                            };
-                                                                    })
-                                                        .ToList();
-                    var persistenceValue = new CompositeBitmapImageElementPersistenceValue(
-                        compositeBitmapImageElementValue.Raw,
-                        metadata.Filename,
-                        metadata.Filesize,
-                        compositeBitmapImageElementValue.CropArea,
-                        sizeSpecificImages);
-                    return (persistenceValue, sizeSpecificImages.Count + 1);
-                }
+                    {
+                        var sizeSpecificImages =
+                            compositeBitmapImageElementValue.SizeSpecificImages
+                                                            .Select(image =>
+                                                                        {
+                                                                            var imageMetadata = metadataForBinaries[image.Raw];
+                                                                            return new CompositeBitmapImageElementPersistenceValue.SizeSpecificImage
+                                                                                {
+                                                                                    Filename = imageMetadata.Filename,
+                                                                                    Filesize = imageMetadata.Filesize,
+                                                                                    Raw = image.Raw,
+                                                                                    Size = image.Size
+                                                                                };
+                                                                        })
+                                                            .ToList();
+                        var persistenceValue = new CompositeBitmapImageElementPersistenceValue(
+                            compositeBitmapImageElementValue.Raw,
+                            metadata.Filename,
+                            metadata.Filesize,
+                            compositeBitmapImageElementValue.CropArea,
+                            sizeSpecificImages);
+                        return (persistenceValue, sizeSpecificImages.Count + 1);
+                    }
+
                 case IScalableBitmapImageElementValue scalableBitmapImageElementValue:
-                {
-                    var persistenceValue = new ScalableBitmapImageElementPersistenceValue(
-                        scalableBitmapImageElementValue.Raw,
-                        metadata.Filename,
-                        metadata.Filesize,
-                        scalableBitmapImageElementValue.Anchor);
-                    return (persistenceValue, 1);
-                }
+                    {
+                        var persistenceValue = new ScalableBitmapImageElementPersistenceValue(
+                            scalableBitmapImageElementValue.Raw,
+                            metadata.Filename,
+                            metadata.Filesize,
+                            scalableBitmapImageElementValue.Anchor);
+                        return (persistenceValue, 1);
+                    }
+
                 default:
                     return (new BinaryElementPersistenceValue(binaryElementValue.Raw, metadata.Filename, metadata.Filesize), 1);
             }
@@ -454,9 +456,10 @@ namespace NuClear.VStore.Objects
                     case ElementDescriptorType.ScalableBitmapImage:
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(descriptor.Type),
-                                                              descriptor.Type,
-                                                              $"Unsupported element descriptor type for descriptor {descriptor.Id}");
+                        throw new ArgumentOutOfRangeException(
+                            nameof(descriptor.Type),
+                            descriptor.Type,
+                            $"Unsupported element descriptor type for descriptor {descriptor.Id}");
                 }
             }
         }

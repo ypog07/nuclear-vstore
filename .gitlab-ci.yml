@@ -47,19 +47,6 @@ build:cloning-tool:
     expire_in: '1 week'
     paths:
       - publish/cloning-tool/
-      
-build:logo-migrator:
-  image: $REGISTRY/microsoft/dotnet:2.0.6-sdk-2.1.101
-  stage: build
-  when: manual
-  script:
-    - dotnet publish src/AmsMigrator --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/logo-migrator
-  tags: [ 2gis, docker ]
-  artifacts:
-    name: "${CI_COMMIT_REF_NAME}_migrator"
-    expire_in: '1 week'
-    paths:
-      - publish/logo-migrator/
 
 generate:coverage:
   image: $REGISTRY/2gis/alpine:3.7-lcov
@@ -118,16 +105,6 @@ build:cloning-tool-image:
   tags: [ docker-engine, io ]
   dependencies:
     - build:cloning-tool
-
-build:logo-migrator-image:
-  stage: dockerize
-  when: manual
-  script:
-    - IMAGE=ams/logo-migrator TAG=$CI_TAG DOCKER_FILE=publish/logo-migrator/Dockerfile DOCKER_BUILD_CONTEXT=publish/logo-migrator make docker-build
-    - IMAGE=ams/logo-migrator TAG=$CI_TAG make docker-push
-  tags: [ docker-engine, io ]
-  dependencies:
-    - build:logo-migrator
 
 # ================ Deploy =================
 

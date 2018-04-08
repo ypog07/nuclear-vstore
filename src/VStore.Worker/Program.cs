@@ -115,9 +115,10 @@ namespace NuClear.VStore.Worker
                                 {
                                     commandConfig.Description = "Produce events of created versions of objects and/or binary files references.";
                                     commandConfig.HelpOption(CommandLine.HelpOptionTemplate);
-                                    commandConfig.Argument(CommandLine.Arguments.Mode,
-                                                           $"Set '{CommandLine.ArgumentValues.Versions}' to produce events of created versions of objects, " +
-                                                           $"and '{CommandLine.ArgumentValues.Binaries}' to produce events of binary files references.");
+                                    commandConfig.Argument(
+                                        CommandLine.Arguments.Mode,
+                                        $"Set '{CommandLine.ArgumentValues.Versions}' to produce events of created versions of objects, " +
+                                        $"and '{CommandLine.ArgumentValues.Binaries}' to produce events of binary files references.");
                                     commandConfig.OnExecute(() => Run(commandConfig, jobRunner, cts));
                                 });
                     });
@@ -140,7 +141,7 @@ namespace NuClear.VStore.Worker
             }
             catch (Exception ex)
             {
-                logger.LogCritical(new EventId(), ex, "Unexpected error occured. See logs for details.");
+                logger.LogCritical(default, ex, "Unexpected error occured. See logs for details.");
                 exitCode = -1;
             }
             finally

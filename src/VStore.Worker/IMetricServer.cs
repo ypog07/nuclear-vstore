@@ -2,10 +2,9 @@
 {
     public interface IMetricServer
     {
-        void Start();
-
-        void Stop();
-
         bool IsRunning { get; }
+
+        void Start();
+        void Stop();
     }
 }

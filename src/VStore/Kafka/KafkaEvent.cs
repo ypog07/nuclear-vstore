@@ -7,7 +7,7 @@ namespace NuClear.VStore.Kafka
     public class KafkaEvent<TSourceEvent> where TSourceEvent : IEvent
     {
         public KafkaEvent(TSourceEvent source, string topic, int partition, Offset offset, Timestamp timestamp)
-            : this (source, new TopicPartitionOffset(topic, partition, offset), timestamp)
+            : this(source, new TopicPartitionOffset(topic, partition, offset), timestamp)
         {
         }
 
