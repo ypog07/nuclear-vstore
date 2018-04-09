@@ -33,10 +33,19 @@ namespace NuClear.VStore.Host.Controllers
             _templatesManagementService = templatesManagementService;
         }
 
+        /// <summary>
+        /// Get available template element descriptors
+        /// </summary>
+        /// <returns>List of template element descriptors</returns>
         [HttpGet("element-descriptors/available")]
         [ProducesResponseType(typeof(IReadOnlyCollection<IElementDescriptor>), 200)]
         public IActionResult GetAvailableElementDescriptors() => Json(_templatesManagementService.GetAvailableElementDescriptors());
 
+        /// <summary>
+        /// Get all templates
+        /// </summary>
+        /// <param name="continuationToken">Token to continue reading list, should be empty on initial call</param>
+        /// <returns>List of template descriptors</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IReadOnlyCollection<IdentifyableObjectRecord<long>>), 200)]
         public async Task<IActionResult> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
@@ -51,6 +60,11 @@ namespace NuClear.VStore.Host.Controllers
             return Json(container.Collection);
         }
 
+        /// <summary>
+        /// Get specified templates
+        /// </summary>
+        /// <param name="ids">List of template identifiers</param>
+        /// <returns>List of specified template descriptors</returns>
         [HttpGet("specified")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectMetadataRecord>), 200)]
         public async Task<IActionResult> List(IReadOnlyCollection<long> ids)
@@ -59,6 +73,12 @@ namespace NuClear.VStore.Host.Controllers
             return Json(records);
         }
 
+        /// <summary>
+        /// Get last version of specified template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifNoneMatch">Version of template to check if it has been modified (optional)</param>
+        /// <returns>Template descriptor or 304 Not Modified</returns>
         [HttpGet("{id:long}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -97,6 +117,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get specific version of template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="versionId">Version</param>
+        /// <returns>Template descriptor</returns>
         [HttpGet("{id:long}/{versionId}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -128,6 +154,11 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Validate template elements (old API)
+        /// </summary>
+        /// <param name="elementDescriptors">Template element descriptors to validate</param>
+        /// <returns>Validation errors or 200 Ok</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPost("validate-elements")]
         [ProducesResponseType(200)]
@@ -145,6 +176,11 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Validate template elements
+        /// </summary>
+        /// <param name="elementDescriptors">Template element descriptors to validate</param>
+        /// <returns>Validation errors or 200 Ok</returns>
         [MapToApiVersion("1.1")]
         [HttpPost("validate-elements")]
         [ProducesResponseType(200)]
@@ -162,6 +198,15 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create new template (old API)
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
@@ -179,6 +224,15 @@ namespace NuClear.VStore.Host.Controllers
             return await CreateInternal(id, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJsonV10);
         }
 
+        /// <summary>
+        /// Create new template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
@@ -196,6 +250,16 @@ namespace NuClear.VStore.Host.Controllers
             return await CreateInternal(id, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJson);
         }
 
+        /// <summary>
+        /// Modify existing template (old API)
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifMatch">Version of template to be modified (should be last version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPut("{id:long}")]
         [ProducesResponseType(204)]
@@ -215,6 +279,16 @@ namespace NuClear.VStore.Host.Controllers
             return await ModifyInternal(id, ifMatch, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJsonV10);
         }
 
+        /// <summary>
+        /// Modify existing template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifMatch">Version of template to be modified (should be last version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
         [HttpPut("{id:long}")]
         [ProducesResponseType(204)]

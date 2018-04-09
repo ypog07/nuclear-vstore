@@ -23,11 +23,24 @@ namespace NuClear.VStore.Renderer.Controllers
             _objectsStorageReader = objectsStorageReader;
         }
 
+        /// <summary>
+        /// Redirect to raw file by session identifier and file key
+        /// </summary>
+        /// <param name="sessionId">Session identifier</param>
+        /// <param name="fileKey">File key</param>
+        /// <returns>HTTP code</returns>
         [HttpGet("{sessionId:guid}/{fileKey}")]
         [ProducesResponseType(302)]
         [ProducesResponseType(404)]
         public IActionResult RedirectToRaw(Guid sessionId, string fileKey) => Redirect(_rawFileStorageInfoProvider.GetRawFileUrl(sessionId, fileKey));
 
+        /// <summary>
+        /// Redirect to raw file by object identifier and version
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <param name="templateCode">Template code of object's element</param>
+        /// <returns>HTTP code</returns>
         [HttpGet("{id:long}/{versionId}/{templateCode:int}")]
         [ProducesResponseType(302)]
         [ProducesResponseType(404)]

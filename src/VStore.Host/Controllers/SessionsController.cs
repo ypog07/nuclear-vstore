@@ -43,6 +43,11 @@ namespace NuClear.VStore.Host.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Get specific session
+        /// </summary>
+        /// <param name="sessionId">Session identifier</param>
+        /// <returns>Session descriptor</returns>
         [HttpGet("{sessionId:guid}")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(typeof(string), 404)]
@@ -94,6 +99,15 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create session for uploading file(-s) using latest version of template
+        /// </summary>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="language">Language of session</param>
+        /// <param name="templateId">Template identifier</param>
+        /// <returns>HTTP code</returns>
         [HttpPost("{language:lang}/{templateId:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 400)]
@@ -131,6 +145,16 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create session for uploading file(-s) using specific version of template
+        /// </summary>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="language">Language of session</param>
+        /// <param name="templateId">Template identifier</param>
+        /// <param name="templateVersionId">Template version identifier</param>
+        /// <returns>HTTP code</returns>
         [HttpPost("{language:lang}/{templateId:long}/{templateVersionId}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 400)]
@@ -169,6 +193,14 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Upload file
+        /// </summary>
+        /// <param name="sessionId">Session identifier</param>
+        /// <param name="templateCode">Template code of element for uploading file</param>
+        /// <param name="rawFileType">File type</param>
+        /// <param name="rawImageSize">File size (for "sizeSpecificBitmapImage" file type)</param>
+        /// <returns>Raw value of uploaded file</returns>
         [AllowAnonymous]
         [HttpPost("{sessionId:guid}/upload/{templateCode:int}")]
         [DisableFormValueModelBinding]

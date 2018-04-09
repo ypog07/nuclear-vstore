@@ -27,7 +27,7 @@ namespace NuClear.VStore.S3
             var value = _metadataCollection[name];
             if (value == null)
             {
-                return default(T);
+                return default;
             }
 
             if (value.StartsWith(Utf8Token, StringComparison.OrdinalIgnoreCase))

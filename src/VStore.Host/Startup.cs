@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Text;
 
@@ -31,7 +32,6 @@ using Newtonsoft.Json.Serialization;
 
 using NuClear.VStore.Host.Options;
 using NuClear.VStore.Http;
-using NuClear.VStore.Http.Core.Filters;
 using NuClear.VStore.Http.Core.Json;
 using NuClear.VStore.Http.Core.Middleware;
 using NuClear.VStore.Http.Core.Routing;
@@ -174,6 +174,7 @@ namespace NuClear.VStore.Host
 
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
+                        options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Host)}.xml"));
                     });
         }
 
