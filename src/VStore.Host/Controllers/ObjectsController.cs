@@ -37,6 +37,11 @@ namespace NuClear.VStore.Host.Controllers
             _objectsManagementService = objectsManagementService;
         }
 
+        /// <summary>
+        /// Get all objects
+        /// </summary>
+        /// <param name="continuationToken">Token to continue reading list, should be empty on initial call</param>
+        /// <returns>List of object descriptors</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IReadOnlyCollection<IdentifyableObjectRecord<long>>), 200)]
         public async Task<IActionResult> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
@@ -51,6 +56,11 @@ namespace NuClear.VStore.Host.Controllers
             return Json(container.Collection);
         }
 
+        /// <summary>
+        /// Get specified objects
+        /// </summary>
+        /// <param name="ids">Object identifiers</param>
+        /// <returns>List of object descriptors</returns>
         [HttpGet("specified")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectMetadataRecord>), 200)]
         public async Task<IActionResult> List(IReadOnlyCollection<long> ids)
@@ -59,6 +69,12 @@ namespace NuClear.VStore.Host.Controllers
             return Json(records);
         }
 
+        /// <summary>
+        /// Get object's specific version template
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <returns>Template descriptor</returns>
         [HttpGet("{id:long}/{versionId}/template")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(IVersionedTemplateDescriptor), 200)]
@@ -79,6 +95,11 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object versions
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <returns>List of object versions</returns>
         [HttpGet("{id:long}/versions")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectVersionRecord>), 200)]
         [ProducesResponseType(404)]
@@ -100,6 +121,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object's latest version
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="ifNoneMatch">Object version to check if it has been modified (optional)</param>
+        /// <returns>Object descriptor or 304 Not Modified</returns>
         [HttpGet("{id:long}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -141,6 +168,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object specific version
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <returns>Object descriptor</returns>
         [HttpGet("{id:long}/{versionId}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -180,6 +213,15 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create new object
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="objectDescriptor">JSON with object descriptor</param>
+        /// <returns>HTTP code</returns>
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 400)]
@@ -246,6 +288,16 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Modify existing object
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="ifMatch">Object version (should be latest version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="objectDescriptor">JSON with object descriptor</param>
+        /// <returns>HTTP code</returns>
         [HttpPatch("{id:long}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]

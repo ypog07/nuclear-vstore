@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 using Amazon.Runtime;
 using Amazon.S3;
@@ -82,6 +83,7 @@ namespace NuClear.VStore.Renderer
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
                         options.OperationFilter<ViewFileFilter>();
+                        options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Renderer)}.xml"));
                     });
 
             SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();

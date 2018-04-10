@@ -6,6 +6,7 @@
     <RuntimeIdentifiers>win10-x64;osx.10.12-x64</RuntimeIdentifiers>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <TrimUnusedDependencies>true</TrimUnusedDependencies>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>latest</LangVersion>
     <CodeAnalysisRuleSet>..\..\NuClear.CodeStyle.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
@@ -26,7 +27,7 @@
     <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" PrivateAssets="All"/>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" PrivateAssets="All" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.ApiExplorer" Version="2.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.0.3" />
