@@ -19,7 +19,8 @@ using NuClear.VStore.Templates;
 
 namespace NuClear.VStore.Host.Controllers
 {
-    [ApiVersion("1.1")]
+    [ApiVersion("1.2")]
+    [ApiVersion("1.1", Deprecated = true)]
     [ApiVersion("1.0", Deprecated = true)]
     [Route("api/{api-version:apiVersion}/templates")]
     public class TemplatesController : VStoreController
@@ -155,6 +156,33 @@ namespace NuClear.VStore.Host.Controllers
         }
 
         /// <summary>
+        /// Get template versions
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <returns>List of template versions</returns>
+        [MapToApiVersion("1.2")]
+        [HttpGet("{id:long}/versions")]
+        [ProducesResponseType(typeof(IReadOnlyCollection<TemplateVersionRecord>), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(503)]
+        public async Task<IActionResult> GetVersions(long id)
+        {
+            try
+            {
+                var versions = await _templatesStorageReader.GetTemplateVersions(id, null);
+                return Json(versions);
+            }
+            catch (ObjectNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (LockAlreadyExistsException)
+            {
+                return ServiceUnavailable("Simultaneous template versions listing and its creation/modification");
+            }
+        }
+
+        /// <summary>
         /// Validate template elements (old API)
         /// </summary>
         /// <param name="elementDescriptors">Template element descriptors to validate</param>
@@ -182,6 +210,7 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="elementDescriptors">Template element descriptors to validate</param>
         /// <returns>Validation errors or 200 Ok</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPost("validate-elements")]
         [ProducesResponseType(200)]
         [ProducesResponseType(typeof(object), 422)]
@@ -234,6 +263,7 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="templateDescriptor">JSON with template descriptor</param>
         /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(object), 400)]
@@ -290,6 +320,7 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="templateDescriptor">JSON with template descriptor</param>
         /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPut("{id:long}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
