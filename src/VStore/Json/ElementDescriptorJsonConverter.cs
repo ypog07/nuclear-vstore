@@ -9,18 +9,20 @@ using NuClear.VStore.Descriptors.Templates;
 
 namespace NuClear.VStore.Json
 {
-    public sealed class ElementDescriptorJsonConverter : JsonConverter<IElementDescriptor>
+    public sealed class ElementDescriptorJsonConverter : JsonConverter
     {
         public JObject LoadedObject { get; private set; }
 
+        public override bool CanConvert(Type objectType) => objectType == typeof(IElementDescriptor);
+
         public override bool CanWrite => false;
 
-        public override void WriteJson(JsonWriter writer, IElementDescriptor value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             throw new NotSupportedException();
         }
 
-        public override IElementDescriptor ReadJson(JsonReader reader, Type objectType, IElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             try
             {

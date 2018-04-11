@@ -12,7 +12,7 @@ namespace NuClear.VStore.Json
         where TTemplateDescriptor : IGenericTemplateDescriptor<TTemplateElementDescriptor>
         where TTemplateElementDescriptor : IElementDescriptor
     {
-        public override bool CanConvert(Type objectType) => typeof(TTemplateDescriptor).IsAssignableFrom(objectType);
+        public override bool CanConvert(Type objectType) => typeof(ITemplateDescriptor).IsAssignableFrom(objectType);
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {

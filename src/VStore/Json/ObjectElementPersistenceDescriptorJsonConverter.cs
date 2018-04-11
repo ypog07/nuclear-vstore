@@ -25,8 +25,13 @@ namespace NuClear.VStore.Json
         {
             var json = JObject.Load(reader);
 
-            var valueToken = json[Tokens.ValueToken];
             var elementDescriptor = json.ToObject<IElementDescriptor>(serializer);
+
+            var valueToken = json[Tokens.ValueToken];
+            if (valueToken == null)
+            {
+                throw new JsonSerializationException($"Element with templateCode {elementDescriptor.TemplateCode} has no '{Tokens.ValueToken}' property.");
+            }
 
             var value = valueToken.AsObjectElementValue(elementDescriptor.Type);
 

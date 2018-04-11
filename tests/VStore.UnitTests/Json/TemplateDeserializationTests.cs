@@ -17,27 +17,27 @@ namespace VStore.UnitTests.Json
         public void ShouldThrowOnInvalidJson()
         {
             const string JsonString = @"{ ; }";
-            Assert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<TemplateDescriptor>(JsonString, SerializerSettings.Default));
+            Assert.ThrowsAny<JsonException>(() => JsonConvert.DeserializeObject<ITemplateDescriptor>(JsonString, SerializerSettings.Default));
         }
 
         [Fact]
         public void ShouldThrowWithoutElements()
         {
             const string JsonString = @"{ }";
-            Assert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<TemplateDescriptor>(JsonString, SerializerSettings.Default));
+            Assert.ThrowsAny<JsonException>(() => JsonConvert.DeserializeObject<ITemplateDescriptor>(JsonString, SerializerSettings.Default));
         }
 
         [Fact]
-        public void ShouldDeserializeEmptyTemplateDescriptor()
+        public void ShouldDeserializeEmptyDescriptor()
         {
-            const string JsonString = @"{ ""elements"": []}";
-            var templateDescriptor = JsonConvert.DeserializeObject<TemplateDescriptor>(JsonString, SerializerSettings.Default);
+            const string JsonString = @"{ ""elements"": [] }";
+            var templateDescriptor = JsonConvert.DeserializeObject<ITemplateDescriptor>(JsonString, SerializerSettings.Default);
             Assert.NotNull(templateDescriptor);
             Assert.Empty(templateDescriptor.Elements);
         }
 
         [Fact]
-        public void ShouldDeserializeValidTemplateDescriptor()
+        public void ShouldDeserializeValidDescriptor()
         {
             const string JsonString =
 @"{
@@ -72,10 +72,8 @@ namespace VStore.UnitTests.Json
     }]
 }";
 
-            var templateDescriptor = JsonConvert.DeserializeObject<TemplateDescriptor>(JsonString, SerializerSettings.Default);
+            var templateDescriptor = JsonConvert.DeserializeObject<ITemplateDescriptor>(JsonString, SerializerSettings.Default);
             Assert.NotNull(templateDescriptor);
-            Assert.Equal(100500L, templateDescriptor.Id);
-            Assert.Equal("j;lkj:LK;jhHlkjhlI*Hljhlihl", templateDescriptor.VersionId);
             Assert.Equal(JObject.Parse(@"{""foo"": ""bar"", ""baz"": 123}"), templateDescriptor.Properties, new JTokenEqualityComparer());
             Assert.Single(templateDescriptor.Elements);
 

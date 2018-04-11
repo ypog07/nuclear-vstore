@@ -2,6 +2,7 @@
 
 using Newtonsoft.Json;
 
+using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Json;
 
 namespace CloningTool.Json
@@ -18,7 +19,7 @@ namespace CloningTool.Json
         public override ITemplateElementDescriptor ReadJson(JsonReader reader, Type objectType, ITemplateElementDescriptor existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             var innerElementConverter = new ElementDescriptorJsonConverter();
-            var innerValue = innerElementConverter.ReadJson(reader, objectType, existingValue, hasExistingValue, serializer);
+            var innerValue = (IElementDescriptor)innerElementConverter.ReadJson(reader, objectType, existingValue, serializer);
 
             var placementToken = innerElementConverter.LoadedObject[Tokens.PlacementToken];
             if (placementToken == null)

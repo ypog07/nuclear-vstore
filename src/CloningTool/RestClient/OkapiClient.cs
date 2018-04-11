@@ -824,7 +824,7 @@ namespace CloningTool.RestClient
                 try
                 {
                     _logger.LogInformation("Connecting to {url}", healthcheckUri);
-                    using (var response = await _authorizedHttpClient.GetAsync(healthcheckUri))
+                    using (var response = await _unauthorizedHttpClient.GetAsync(healthcheckUri))
                     {
                         response.EnsureSuccessStatusCode();
                         succeeded = true;

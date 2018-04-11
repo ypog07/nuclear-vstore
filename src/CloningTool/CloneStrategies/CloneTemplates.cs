@@ -76,21 +76,23 @@ namespace CloningTool.CloneStrategies
 
             var clonedCount = 0L;
             var failedIds = new ConcurrentBag<long>();
-            await CloneHelpers.ParallelRunAsync(_sourceTemplates.Values, _options.MaxDegreeOfParallelism,
-                                                async template =>
-                                                {
-                                                    try
-                                                    {
-                                                        await CloneTemplateAsync(template);
-                                                        _logger.LogInformation("Template cloning succeeded: {template}", template);
-                                                        Interlocked.Increment(ref clonedCount);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        failedIds.Add(template.Id);
-                                                        _logger.LogError(default, ex, "Template cloning error: {template}", template);
-                                                    }
-                                                });
+            await CloneHelpers.ParallelRunAsync(
+                _sourceTemplates.Values,
+                _options.MaxDegreeOfParallelism,
+                async template =>
+                    {
+                        try
+                        {
+                            await CloneTemplateAsync(template);
+                            _logger.LogInformation("Template cloning succeeded: {template}", template);
+                            Interlocked.Increment(ref clonedCount);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedIds.Add(template.Id);
+                            _logger.LogError(default, ex, "Template cloning error: {template}", template);
+                        }
+                    });
 
             _logger.LogInformation("Cloned templates: {cloned} of {total}", clonedCount, _sourceTemplates.Count);
             if (failedIds.Count > 0)

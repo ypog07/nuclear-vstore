@@ -5,7 +5,7 @@ using Newtonsoft.Json.Linq;
 namespace NuClear.VStore.Descriptors.Templates
 {
     public interface IGenericTemplateDescriptor<TElementDescriptor> : IDescriptor
-        where TElementDescriptor: IElementDescriptor
+        where TElementDescriptor : IElementDescriptor
     {
         string Author { get; set; }
         string AuthorLogin { get; set; }
