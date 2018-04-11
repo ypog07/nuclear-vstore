@@ -34,7 +34,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Cors" Version="2.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.0.2" />
     <PackageReference Include="Microsoft.Packaging.Tools.Trimming" Version="1.1.0-preview1-25818-01" />
-    <PackageReference Include="Autofac" Version="4.6.2" />
+    <PackageReference Include="Autofac" Version="4.7.0" />
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.2" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.5" />
     <PackageReference Include="Prometheus.Client.Owin" Version="1.4.0" />
