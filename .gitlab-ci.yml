@@ -20,11 +20,11 @@ build:app:
   stage: build
   when: always
   script:
-    - dotnet restore --runtime ubuntu.14.04-x64
+    - dotnet restore --runtime debian.9-x64
     - dotnet test tests/VStore.UnitTests/VStore.UnitTests.csproj --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutputDirectory="`pwd`/coverage"
-    - dotnet publish src/VStore.Host --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore
-    - dotnet publish src/VStore.Worker --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore-worker
-    - dotnet publish src/VStore.Renderer --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore-renderer
+    - dotnet publish src/VStore.Host --configuration Release --runtime debian.9-x64 --output ../../publish/vstore
+    - dotnet publish src/VStore.Worker --configuration Release --runtime debian.9-x64 --output ../../publish/vstore-worker
+    - dotnet publish src/VStore.Renderer --configuration Release --runtime debian.9-x64 --output ../../publish/vstore-renderer
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_app"
@@ -40,7 +40,7 @@ build:cloning-tool:
   stage: build
   when: manual
   script:
-    - dotnet publish src/CloningTool --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/cloning-tool
+    - dotnet publish src/CloningTool --configuration Release --runtime debian.9-x64 --output ../../publish/cloning-tool
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_cloning_tool"
