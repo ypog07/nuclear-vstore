@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		NuGet.Config = NuGet.Config
 		NuClear.CodeStyle.ruleset = NuClear.CodeStyle.ruleset
+		global.json = global.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{296CC59B-21CF-456D-85E2-7C99DFF9D2C7}"

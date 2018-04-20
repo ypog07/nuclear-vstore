@@ -86,7 +86,7 @@ namespace NuClear.VStore.Renderer
                         options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Renderer)}.xml"));
                     });
 
-            SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
+            SixLabors.ImageSharp.Configuration.Default.MemoryManager = SixLabors.ImageSharp.Memory.ArrayPoolMemoryManager.CreateWithModeratePooling();
         }
 
         public void ConfigureContainer(ContainerBuilder builder)
