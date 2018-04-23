@@ -8,13 +8,12 @@ namespace NuClear.VStore.ImageRendering
 {
     public sealed class MemoryBasedRequestLimiter
     {
-        private const float ThresholdFactor = 0.4f;
         private readonly object _syncRoot = new object();
-        private readonly int _memoryToAllocateThreshold;
+        private readonly long _memoryToAllocateThreshold;
 
         public MemoryBasedRequestLimiter(ThrottlingOptions throttlingOptions)
         {
-            _memoryToAllocateThreshold = (int)(ThresholdFactor * throttlingOptions.MemoryLimit);
+            _memoryToAllocateThreshold = (long)(throttlingOptions.ThresholdFactor * throttlingOptions.MemoryLimit);
         }
 
         public void HandleRequest(int requiredMemoryInBytes, CancellationToken cancellationToken)
