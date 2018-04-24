@@ -20,7 +20,7 @@ namespace VStore.UnitTests.ImageRendering
         public MemoryConsumptionTests(ITestOutputHelper output)
         {
             _output = output;
-            Configuration.Default.MemoryManager = ArrayPoolMemoryManager.CreateWithModeratePooling();
+            Configuration.Default.MemoryManager = ArrayPoolMemoryManager.CreateWithAggressivePooling();
         }
 
         [Fact(Skip = "Experiments with ImageSharp")]
