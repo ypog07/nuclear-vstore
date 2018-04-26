@@ -76,21 +76,23 @@ namespace CloningTool.CloneStrategies
 
             var clonedCount = 0L;
             var failedIds = new ConcurrentBag<long>();
-            await CloneHelpers.ParallelRunAsync(_sourceTemplates.Values, _options.MaxDegreeOfParallelism,
-                                                async template =>
-                                                {
-                                                    try
-                                                    {
-                                                        await CloneTemplateAsync(template);
-                                                        _logger.LogInformation("Template cloning succeeded: {template}", template);
-                                                        Interlocked.Increment(ref clonedCount);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        failedIds.Add(template.Id);
-                                                        _logger.LogError(default, ex, "Template cloning error: {template}", template);
-                                                    }
-                                                });
+            await CloneHelpers.ParallelRunAsync(
+                _sourceTemplates.Values,
+                _options.MaxDegreeOfParallelism,
+                async template =>
+                    {
+                        try
+                        {
+                            await CloneTemplateAsync(template);
+                            _logger.LogInformation("Template cloning succeeded: {template}", template);
+                            Interlocked.Increment(ref clonedCount);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedIds.Add(template.Id);
+                            _logger.LogError(default, ex, "Template cloning error: {template}", template);
+                        }
+                    });
 
             _logger.LogInformation("Cloned templates: {cloned} of {total}", clonedCount, _sourceTemplates.Count);
             if (failedIds.Count > 0)
@@ -139,7 +141,7 @@ namespace CloningTool.CloneStrategies
             }
         }
 
-        private bool CompareTemplateDescriptors(TemplateDescriptor existedTemplate, TemplateDescriptor newTemplate)
+        private bool CompareTemplateDescriptors(ApiTemplateDescriptor existedTemplate, ApiTemplateDescriptor newTemplate)
         {
             var firstProps = existedTemplate.Properties
                 .Properties()
@@ -188,6 +190,16 @@ namespace CloningTool.CloneStrategies
                     var first = new { firstElement.TemplateCode, Type = firstElement.Type.ToString(), Constraints = firstConstraints.Count, Props = new JObject(firstElementProps) };
                     var second = new { secondElement.TemplateCode, Type = secondElement.Type.ToString(), Constraints = secondConstraints.Count, Props = new JObject(secondElementProps) };
                     _logger.LogInformation("Different elements headers for template {id}, existed: {existed} and new: {new}", existedTemplate.Id, first, second);
+                    return false;
+                }
+
+                if (!Equals(firstElement.Placement, secondElement.Placement))
+                {
+                    _logger.LogInformation("Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
+                                           existedTemplate.Id,
+                                           firstElement.TemplateCode,
+                                           firstElement.Placement,
+                                           secondElement.Placement);
                     return false;
                 }
 
