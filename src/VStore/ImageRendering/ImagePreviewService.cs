@@ -87,7 +87,7 @@ namespace NuClear.VStore.ImageRendering
             var cts = new CancellationTokenSource(_requestTimeout);
             var rawStream = await GetRawStream(imageElementValue, cts.Token);
 
-            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+            // EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
             using (var source = Decode(templateCode, rawStream, out var imageFormat))
             {
@@ -312,7 +312,7 @@ namespace NuClear.VStore.ImageRendering
 
             var rawStream = await GetRawStream(imageElementValue, cts.Token);
 
-            EnsureRequestCanBeProcessed(rawStream, cts.Token);
+            // EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
             using (var source = Decode(templateCode, rawStream, out _))
             {
