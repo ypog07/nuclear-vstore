@@ -44,10 +44,12 @@ namespace NuClear.VStore.Renderer
         private const string Aws = "AWS";
         private const string Ceph = "Ceph";
 
+        private readonly IHostingEnvironment _environment;
         private readonly IConfiguration _configuration;
 
-        public Startup(IConfiguration configuration)
+        public Startup(IHostingEnvironment environment, IConfiguration configuration)
         {
+            _environment = environment;
             _configuration = configuration;
         }
 
@@ -85,8 +87,6 @@ namespace NuClear.VStore.Renderer
                         options.OperationFilter<ViewFileFilter>();
                         options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Renderer)}.xml"));
                     });
-
-            SixLabors.ImageSharp.Configuration.Default.MemoryManager = SixLabors.ImageSharp.Memory.ArrayPoolMemoryManager.CreateWithAggressivePooling();
         }
 
         public void ConfigureContainer(ContainerBuilder builder)
@@ -176,11 +176,21 @@ namespace NuClear.VStore.Renderer
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
                    .SingleInstance();
             builder.RegisterType<RawFileStorageInfoProvider>().SingleInstance();
-            builder.RegisterType<MemoryBasedRequestLimiter>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();
+
+            if (!_environment.IsProduction())
+            {
+                SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
+                builder.RegisterType<MemoryBasedRequestLimiter>().As<IRequestLimiter>().SingleInstance();
+            }
+            else
+            {
+                SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithUnlimitedPooling();
+                builder.RegisterType<NullRequestLimiter>().As<IRequestLimiter>().SingleInstance();
+            }
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app)
         {
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
@@ -196,7 +206,7 @@ namespace NuClear.VStore.Renderer
                                             { "message", feature.Error.Message }
                                         };
 
-                                    if (env.IsDevelopment())
+                                    if (_environment.IsDevelopment())
                                     {
                                         error.Add("details", feature.Error.ToString());
                                     }
@@ -221,7 +231,7 @@ namespace NuClear.VStore.Renderer
 
             app.UseMvc();
 
-            if (!env.IsProduction())
+            if (!_environment.IsProduction())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(

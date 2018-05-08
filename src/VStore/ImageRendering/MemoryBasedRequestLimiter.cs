@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Runtime;
 using System.Threading;
+using System.Threading.Tasks;
 
 using NuClear.VStore.Options;
 
 namespace NuClear.VStore.ImageRendering
 {
-    public sealed class MemoryBasedRequestLimiter
+    public sealed class MemoryBasedRequestLimiter : IRequestLimiter
     {
         private readonly object _syncRoot = new object();
         private readonly long _memoryToAllocateThreshold;
@@ -16,7 +17,7 @@ namespace NuClear.VStore.ImageRendering
             _memoryToAllocateThreshold = (long)(throttlingOptions.ThresholdFactor * throttlingOptions.MemoryLimit);
         }
 
-        public void HandleRequest(int requiredMemoryInBytes, CancellationToken cancellationToken)
+        public Task HandleRequestAsync(int requiredMemoryInBytes, CancellationToken cancellationToken)
         {
             lock (_syncRoot)
             {
@@ -31,6 +32,8 @@ namespace NuClear.VStore.ImageRendering
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
     }
 }

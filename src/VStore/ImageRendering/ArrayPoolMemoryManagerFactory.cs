@@ -12,5 +12,14 @@ namespace NuClear.VStore.ImageRendering
         {
             return new ArrayPoolMemoryManager(350 * 350 * 4, 1, 1, 1);
         }
+
+        /// <summary>
+        /// Similar to <see cref="ArrayPoolMemoryManager.CreateWithAggressivePooling"/> option, but with less amount of buckets per every pool
+        /// </summary>
+        /// <returns>The memory manager</returns>
+        public static ArrayPoolMemoryManager CreateWithUnlimitedPooling()
+        {
+            return new ArrayPoolMemoryManager(128 * 1024 * 1024 * 4, 8 * 1024 * 1024 * 4, 4, 16);
+        }
     }
 }

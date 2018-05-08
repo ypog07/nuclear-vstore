@@ -40,13 +40,13 @@ namespace NuClear.VStore.ImageRendering
         private readonly TimeSpan _requestTimeout;
 
         private readonly IS3Client _s3Client;
-        private readonly MemoryBasedRequestLimiter _requestLimiter;
+        private readonly IRequestLimiter _requestLimiter;
 
         public ImagePreviewService(
             CephOptions cephOptions,
             ThrottlingOptions throttlingOptions,
             IS3Client s3Client,
-            MemoryBasedRequestLimiter requestLimiter)
+            IRequestLimiter requestLimiter)
         {
             _bucketName = cephOptions.FilesBucketName;
             _requestTimeout = throttlingOptions.RequestTimeout;
@@ -87,7 +87,7 @@ namespace NuClear.VStore.ImageRendering
             var cts = new CancellationTokenSource(_requestTimeout);
             var rawStream = await GetRawStream(imageElementValue, cts.Token);
 
-            // EnsureRequestCanBeProcessed(rawStream, cts.Token);
+            await EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
             using (var source = Decode(templateCode, rawStream, out var imageFormat))
             {
@@ -312,7 +312,7 @@ namespace NuClear.VStore.ImageRendering
 
             var rawStream = await GetRawStream(imageElementValue, cts.Token);
 
-            // EnsureRequestCanBeProcessed(rawStream, cts.Token);
+            await EnsureRequestCanBeProcessed(rawStream, cts.Token);
 
             using (var source = Decode(templateCode, rawStream, out _))
             {
@@ -350,13 +350,13 @@ namespace NuClear.VStore.ImageRendering
             }
         }
 
-        private void EnsureRequestCanBeProcessed(Stream rawStream, CancellationToken cancellationToken)
+        private async Task EnsureRequestCanBeProcessed(Stream rawStream, CancellationToken cancellationToken)
         {
             rawStream.Position = 0;
             var imageInfo = Image.Identify(rawStream);
             var requiredMemoryInBytes = imageInfo.PixelType.BitsPerPixel / 8 * imageInfo.Width * imageInfo.Width;
 
-            _requestLimiter.HandleRequest(requiredMemoryInBytes, cancellationToken);
+            await _requestLimiter.HandleRequestAsync(requiredMemoryInBytes, cancellationToken);
         }
     }
 }
