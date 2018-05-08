@@ -61,6 +61,19 @@ namespace NuClear.VStore.Locks
             }
         }
 
+        private static string GetFriendlyName(EndPoint endPoint)
+        {
+            switch (endPoint)
+            {
+                case DnsEndPoint dnsEndPoint:
+                    return $"{dnsEndPoint.Host}:{dnsEndPoint.Port}";
+                case IPEndPoint ipEndPoint:
+                    return $"{ipEndPoint.Address}:{ipEndPoint.Port}";
+            }
+
+            return endPoint.ToString();
+        }
+
         private IList<RedLockMultiplexer> Initialize()
         {
             var endpoints = _lockOptions.GetEndPoints();
@@ -181,19 +194,6 @@ namespace NuClear.VStore.Locks
                 _cancellationTokenSource.Token,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
-        }
-
-        private static string GetFriendlyName(EndPoint endPoint)
-        {
-            switch (endPoint)
-            {
-                case DnsEndPoint dnsEndPoint:
-                    return $"{dnsEndPoint.Host}:{dnsEndPoint.Port}";
-                case IPEndPoint ipEndPoint:
-                    return $"{ipEndPoint.Address}:{ipEndPoint.Port}";
-            }
-
-            return endPoint.ToString();
         }
 
         private class LogWriter : TextWriter
