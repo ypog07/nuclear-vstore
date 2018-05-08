@@ -10,6 +10,16 @@ namespace CloningTool.Json
 {
     internal static class ApiSerializerSettings
     {
+        private static readonly JsonConverter[] CustonConverters =
+            {
+                new StringEnumConverter { CamelCaseText = true },
+                new ElementDescriptorCollectionJsonConverter(),
+                new ApiObjectElementDescriptorJsonConverter(),
+                new ApiTemplateDescriptorJsonConverter(),
+                new ApiTemplateElementDescriptorJsonConverter(),
+                new ElementDescriptorJsonConverter()
+            };
+
         static ApiSerializerSettings()
         {
             Default = new JsonSerializerSettings
@@ -17,11 +27,10 @@ namespace CloningTool.Json
                     Culture = CultureInfo.InvariantCulture,
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 };
-            Default.Converters.Insert(0, new StringEnumConverter { CamelCaseText = true });
-            Default.Converters.Insert(1, new ElementDescriptorJsonConverter());
-            Default.Converters.Insert(2, new ElementDescriptorCollectionJsonConverter());
-            Default.Converters.Insert(3, new ApiObjectElementDescriptorJsonConverter());
-            Default.Converters.Insert(4, new ApiObjectDescriptorJsonConverter());
+            for (var index = 0; index < CustonConverters.Length; index++)
+            {
+                Default.Converters.Insert(index, CustonConverters[index]);
+            }
         }
 
         public static JsonSerializerSettings Default { get; }

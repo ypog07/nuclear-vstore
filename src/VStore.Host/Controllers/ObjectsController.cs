@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,8 @@ using Microsoft.Net.Http.Headers;
 using NuClear.VStore.DataContract;
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
-using NuClear.VStore.Host.Extensions;
+using NuClear.VStore.Http.Core.Controllers;
+using NuClear.VStore.Http.Core.Extensions;
 using NuClear.VStore.Locks;
 using NuClear.VStore.Objects;
 using NuClear.VStore.Objects.ContentValidation;
@@ -21,13 +23,13 @@ namespace NuClear.VStore.Host.Controllers
     [Route("api/{api-version:apiVersion}/objects")]
     public sealed class ObjectsController : VStoreController
     {
-        private readonly ObjectsStorageReader _objectsStorageReader;
-        private readonly ObjectsManagementService _objectsManagementService;
+        private readonly IObjectsStorageReader _objectsStorageReader;
+        private readonly IObjectsManagementService _objectsManagementService;
         private readonly ILogger<ObjectsController> _logger;
 
         public ObjectsController(
-            ObjectsStorageReader objectsStorageReader,
-            ObjectsManagementService objectsManagementService,
+            IObjectsStorageReader objectsStorageReader,
+            IObjectsManagementService objectsManagementService,
             ILogger<ObjectsController> logger)
         {
             _logger = logger;
@@ -35,6 +37,11 @@ namespace NuClear.VStore.Host.Controllers
             _objectsManagementService = objectsManagementService;
         }
 
+        /// <summary>
+        /// Get all objects
+        /// </summary>
+        /// <param name="continuationToken">Token to continue reading list, should be empty on initial call</param>
+        /// <returns>List of object descriptors</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IReadOnlyCollection<IdentifyableObjectRecord<long>>), 200)]
         public async Task<IActionResult> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
@@ -49,6 +56,11 @@ namespace NuClear.VStore.Host.Controllers
             return Json(container.Collection);
         }
 
+        /// <summary>
+        /// Get specified objects
+        /// </summary>
+        /// <param name="ids">Object identifiers</param>
+        /// <returns>List of object descriptors</returns>
         [HttpGet("specified")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectMetadataRecord>), 200)]
         public async Task<IActionResult> List(IReadOnlyCollection<long> ids)
@@ -57,6 +69,12 @@ namespace NuClear.VStore.Host.Controllers
             return Json(records);
         }
 
+        /// <summary>
+        /// Get object's specific version template
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <returns>Template descriptor</returns>
         [HttpGet("{id:long}/{versionId}/template")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(IVersionedTemplateDescriptor), 200)]
@@ -77,6 +95,11 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object versions
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <returns>List of object versions</returns>
         [HttpGet("{id:long}/versions")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectVersionRecord>), 200)]
         [ProducesResponseType(404)]
@@ -98,6 +121,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object's latest version
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="ifNoneMatch">Object version to check if it has been modified (optional)</param>
+        /// <returns>Object descriptor or 304 Not Modified</returns>
         [HttpGet("{id:long}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -107,7 +136,7 @@ namespace NuClear.VStore.Host.Controllers
         {
             try
             {
-                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, null);
+                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, null, CancellationToken.None);
 
                 Response.Headers[HeaderNames.ETag] = $"\"{objectDescriptor.VersionId}\"";
                 Response.Headers[HeaderNames.LastModified] = objectDescriptor.LastModified.ToString("R");
@@ -139,6 +168,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get object specific version
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <returns>Object descriptor</returns>
         [HttpGet("{id:long}/{versionId}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -148,7 +183,7 @@ namespace NuClear.VStore.Host.Controllers
         {
             try
             {
-                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, versionId);
+                var objectDescriptor = await _objectsStorageReader.GetObjectDescriptor(id, versionId, CancellationToken.None);
 
                 Response.Headers[HeaderNames.ETag] = $"\"{objectDescriptor.VersionId}\"";
                 Response.Headers[HeaderNames.LastModified] = objectDescriptor.LastModified.ToString("R");
@@ -178,12 +213,22 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create new object
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="objectDescriptor">JSON with object descriptor</param>
+        /// <returns>HTTP code</returns>
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Create(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -198,9 +243,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (objectDescriptor == null)
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest("Object descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
@@ -217,7 +262,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (ObjectNotFoundException ex)
             {
-                _logger.LogError(new EventId(), ex, "Error occured while creating object");
+                _logger.LogError(default, ex, "Error occured while creating object");
                 return Unprocessable(ex.Message);
             }
             catch (ObjectAlreadyExistsException)
@@ -226,11 +271,11 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous creation of object with the same id");
+                return Locked("Simultaneous creation of object with the same id");
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(new EventId(), ex, "Error occured while creating object");
+                _logger.LogError(default, ex, "Error occured while creating object");
                 return BadRequest(ex.Message);
             }
             catch (ArgumentException ex)
@@ -243,13 +288,23 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Modify existing object
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="ifMatch">Object version (should be latest version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="objectDescriptor">JSON with object descriptor</param>
+        /// <returns>HTTP code</returns>
         [HttpPatch("{id:long}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Modify(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -258,6 +313,11 @@ namespace NuClear.VStore.Host.Controllers
             [FromHeader(Name = Http.HeaderNames.AmsAuthorName)] string authorName,
             [FromBody] IObjectDescriptor objectDescriptor)
         {
+            if (string.IsNullOrEmpty(ifMatch))
+            {
+                return BadRequest($"'{HeaderNames.IfMatch}' request header must be specified.");
+            }
+
             if (string.IsNullOrEmpty(author) || string.IsNullOrEmpty(authorLogin) || string.IsNullOrEmpty(authorName))
             {
                 return BadRequest(
@@ -265,14 +325,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (string.IsNullOrEmpty(author))
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest($"'{Http.HeaderNames.AmsAuthor}' request header must be specified.");
-            }
-
-            if (objectDescriptor == null)
-            {
-                return BadRequest("Object descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
@@ -297,7 +352,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous modification of object");
+                return Locked("Simultaneous modification of object");
             }
             catch (ConcurrencyException)
             {
@@ -305,7 +360,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(new EventId(), ex, "Error occured while modifying object");
+                _logger.LogError(default, ex, "Error occured while modifying object");
                 return BadRequest(ex.Message);
             }
             catch (ArgumentException ex)

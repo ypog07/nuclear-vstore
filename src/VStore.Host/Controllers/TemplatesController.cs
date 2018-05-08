@@ -9,7 +9,8 @@ using Newtonsoft.Json.Linq;
 
 using NuClear.VStore.DataContract;
 using NuClear.VStore.Descriptors.Templates;
-using NuClear.VStore.Host.Extensions;
+using NuClear.VStore.Http.Core.Controllers;
+using NuClear.VStore.Http.Core.Extensions;
 using NuClear.VStore.Json;
 using NuClear.VStore.Locks;
 using NuClear.VStore.Objects;
@@ -18,24 +19,34 @@ using NuClear.VStore.Templates;
 
 namespace NuClear.VStore.Host.Controllers
 {
-    [ApiVersion("1.1")]
+    [ApiVersion("1.2")]
+    [ApiVersion("1.1", Deprecated = true)]
     [ApiVersion("1.0", Deprecated = true)]
     [Route("api/{api-version:apiVersion}/templates")]
     public class TemplatesController : VStoreController
     {
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly TemplatesManagementService _templatesManagementService;
 
-        public TemplatesController(TemplatesStorageReader templatesStorageReader, TemplatesManagementService templatesManagementService)
+        public TemplatesController(ITemplatesStorageReader templatesStorageReader, TemplatesManagementService templatesManagementService)
         {
             _templatesStorageReader = templatesStorageReader;
             _templatesManagementService = templatesManagementService;
         }
 
+        /// <summary>
+        /// Get available template element descriptors
+        /// </summary>
+        /// <returns>List of template element descriptors</returns>
         [HttpGet("element-descriptors/available")]
         [ProducesResponseType(typeof(IReadOnlyCollection<IElementDescriptor>), 200)]
         public IActionResult GetAvailableElementDescriptors() => Json(_templatesManagementService.GetAvailableElementDescriptors());
 
+        /// <summary>
+        /// Get all templates
+        /// </summary>
+        /// <param name="continuationToken">Token to continue reading list, should be empty on initial call</param>
+        /// <returns>List of template descriptors</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IReadOnlyCollection<IdentifyableObjectRecord<long>>), 200)]
         public async Task<IActionResult> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
@@ -50,6 +61,11 @@ namespace NuClear.VStore.Host.Controllers
             return Json(container.Collection);
         }
 
+        /// <summary>
+        /// Get specified templates
+        /// </summary>
+        /// <param name="ids">List of template identifiers</param>
+        /// <returns>List of specified template descriptors</returns>
         [HttpGet("specified")]
         [ProducesResponseType(typeof(IReadOnlyCollection<ObjectMetadataRecord>), 200)]
         public async Task<IActionResult> List(IReadOnlyCollection<long> ids)
@@ -58,6 +74,12 @@ namespace NuClear.VStore.Host.Controllers
             return Json(records);
         }
 
+        /// <summary>
+        /// Get last version of specified template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifNoneMatch">Version of template to check if it has been modified (optional)</param>
+        /// <returns>Template descriptor or 304 Not Modified</returns>
         [HttpGet("{id:long}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -96,6 +118,12 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get specific version of template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="versionId">Version</param>
+        /// <returns>Template descriptor</returns>
         [HttpGet("{id:long}/{versionId}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
@@ -127,6 +155,38 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Get template versions
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <returns>List of template versions</returns>
+        [MapToApiVersion("1.2")]
+        [HttpGet("{id:long}/versions")]
+        [ProducesResponseType(typeof(IReadOnlyCollection<TemplateVersionRecord>), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(503)]
+        public async Task<IActionResult> GetVersions(long id)
+        {
+            try
+            {
+                var versions = await _templatesStorageReader.GetTemplateVersions(id, null);
+                return Json(versions);
+            }
+            catch (ObjectNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (LockAlreadyExistsException)
+            {
+                return ServiceUnavailable("Simultaneous template versions listing and its creation/modification");
+            }
+        }
+
+        /// <summary>
+        /// Validate template elements (old API)
+        /// </summary>
+        /// <param name="elementDescriptors">Template element descriptors to validate</param>
+        /// <returns>Validation errors or 200 Ok</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPost("validate-elements")]
         [ProducesResponseType(200)]
@@ -144,7 +204,13 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Validate template elements
+        /// </summary>
+        /// <param name="elementDescriptors">Template element descriptors to validate</param>
+        /// <returns>Validation errors or 200 Ok</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPost("validate-elements")]
         [ProducesResponseType(200)]
         [ProducesResponseType(typeof(object), 422)]
@@ -161,12 +227,22 @@ namespace NuClear.VStore.Host.Controllers
             }
         }
 
+        /// <summary>
+        /// Create new template (old API)
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> CreateV10(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -177,12 +253,23 @@ namespace NuClear.VStore.Host.Controllers
             return await CreateInternal(id, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJsonV10);
         }
 
+        /// <summary>
+        /// Create new template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPost("{id:long}")]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(object), 400)]
         [ProducesResponseType(409)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Create(
             long id,
             [FromHeader(Name = Http.HeaderNames.AmsAuthor)] string author,
@@ -193,14 +280,24 @@ namespace NuClear.VStore.Host.Controllers
             return await CreateInternal(id, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJson);
         }
 
+        /// <summary>
+        /// Modify existing template (old API)
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifMatch">Version of template to be modified (should be last version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpPut("{id:long}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> ModifyV10(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -212,14 +309,25 @@ namespace NuClear.VStore.Host.Controllers
             return await ModifyInternal(id, ifMatch, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJsonV10);
         }
 
+        /// <summary>
+        /// Modify existing template
+        /// </summary>
+        /// <param name="id">Template identifier</param>
+        /// <param name="ifMatch">Version of template to be modified (should be last version)</param>
+        /// <param name="author">Author identifier</param>
+        /// <param name="authorLogin">Author login</param>
+        /// <param name="authorName">Author name</param>
+        /// <param name="templateDescriptor">JSON with template descriptor</param>
+        /// <returns>HTTP code</returns>
         [MapToApiVersion("1.1")]
+        [MapToApiVersion("1.2")]
         [HttpPut("{id:long}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
-        [ProducesResponseType(409)]
         [ProducesResponseType(412)]
         [ProducesResponseType(typeof(object), 422)]
+        [ProducesResponseType(423)]
         public async Task<IActionResult> Modify(
             long id,
             [FromHeader(Name = HeaderNames.IfMatch)] string ifMatch,
@@ -230,6 +338,15 @@ namespace NuClear.VStore.Host.Controllers
         {
             return await ModifyInternal(id, ifMatch, author, authorLogin, authorName, templateDescriptor, GenerateTemplateErrorJson);
         }
+
+        private static JToken GenerateTemplateErrorJsonV10(TemplateValidationException ex) => new JArray { ex.SerializeToJsonV10() };
+
+        private static JToken GenerateTemplateErrorJson(TemplateValidationException ex) =>
+            new JObject
+                {
+                    { Tokens.ErrorsToken, new JArray() },
+                    { Tokens.ElementsToken, new JArray { ex.SerializeToJson() } }
+                };
 
         private async Task<IActionResult> CreateInternal(
             long id,
@@ -246,9 +363,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (templateDescriptor == null)
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest("Template descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
@@ -265,7 +382,7 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous creation of template with the same id");
+                return Locked("Simultaneous creation of template with the same id");
             }
             catch (TemplateValidationException ex)
             {
@@ -294,9 +411,9 @@ namespace NuClear.VStore.Host.Controllers
                     "request headers must be specified.");
             }
 
-            if (templateDescriptor == null)
+            if (TryGetModelErrors(out var errors))
             {
-                return BadRequest("Template descriptor must be set.");
+                return BadRequest(errors);
             }
 
             try
@@ -321,21 +438,12 @@ namespace NuClear.VStore.Host.Controllers
             }
             catch (LockAlreadyExistsException)
             {
-                return Conflict("Simultaneous modification of template");
+                return Locked("Simultaneous modification of template");
             }
             catch (ConcurrencyException)
             {
                 return PreconditionFailed();
             }
         }
-
-        private static JToken GenerateTemplateErrorJsonV10(TemplateValidationException ex) => new JArray { ex.SerializeToJsonV10() };
-
-        private static JToken GenerateTemplateErrorJson(TemplateValidationException ex) =>
-            new JObject
-                {
-                    { Tokens.ErrorsToken, new JArray() },
-                    { Tokens.ElementsToken, new JArray { ex.SerializeToJson() } }
-                };
     }
 }

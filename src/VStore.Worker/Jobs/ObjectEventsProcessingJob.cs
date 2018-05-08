@@ -31,8 +31,8 @@ namespace NuClear.VStore.Worker.Jobs
         private readonly string _binariesUsingsTopic;
 
         private readonly ILogger<ObjectEventsProcessingJob> _logger;
-        private readonly ObjectsStorageReader _objectsStorageReader;
-        private readonly EventSender _eventSender;
+        private readonly IObjectsStorageReader _objectsStorageReader;
+        private readonly IEventSender _eventSender;
         private readonly EventReceiver _versionEventReceiver;
         private readonly EventReceiver _binariesEventReceiver;
 
@@ -40,9 +40,9 @@ namespace NuClear.VStore.Worker.Jobs
 
         public ObjectEventsProcessingJob(
             ILogger<ObjectEventsProcessingJob> logger,
-            ObjectsStorageReader objectsStorageReader,
+            IObjectsStorageReader objectsStorageReader,
             KafkaOptions kafkaOptions,
-            EventSender eventSender)
+            IEventSender eventSender)
         {
             _objectVersionsTopic = kafkaOptions.ObjectVersionsTopic;
             _binariesUsingsTopic = kafkaOptions.BinariesReferencesTopic;
@@ -120,15 +120,15 @@ namespace NuClear.VStore.Worker.Jobs
                                          break;
                                      case LockAlreadyExistsException _:
                                          logger.LogWarning(
-                                             "{taskName}: Got an event for the object currenty locked. Message: {errorMessage}. The event will be processed again.",
+                                             "{taskName}: Got an event for the object currently locked. Message: {errorMessage}. The event will be processed again.",
                                              taskName,
                                              ex.Message);
                                          break;
                                      default:
                                          logger.LogError(
-                                             new EventId(),
+                                             default,
                                              ex,
-                                             "{taskName}: Unexpected error occured: {errorMessage}.",
+                                             "{taskName}: Unexpected error occurred: {errorMessage}.",
                                              taskName,
                                              ex.Message);
                                          break;
@@ -248,8 +248,7 @@ namespace NuClear.VStore.Worker.Jobs
                 foreach (var record in versionRecords)
                 {
                     var fileInfos = record.Elements
-                                          .Where(x => x.Value is IBinaryElementValue binaryValue && !string.IsNullOrEmpty(binaryValue.Raw))
-                                          .Select(x => (TemplateCode: x.TemplateCode, FileKey: ((IBinaryElementValue)x.Value).Raw))
+                                          .SelectMany(rec => rec.Value.ExtractFileKeys().Select(key => (rec.TemplateCode, FileKey: key)))
                                           .ToList();
                     foreach (var fileInfo in fileInfos)
                     {

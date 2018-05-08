@@ -42,6 +42,12 @@ namespace NuClear.VStore.S3
             return new Guid(key.Substring(0, separatorIndex));
         }
 
+        public static string AsRawFilePath(this string baseUrl, params string[] rawFileKeys)
+            => string.Join(Separator, new[] { baseUrl }.Concat(rawFileKeys));
+
+        public static string AsRawFilePath(this string baseUrl, Guid sessionId, string fileKey)
+            => string.Join(Separator, new[] { baseUrl }.Concat(new[] { sessionId.ToString(), fileKey }));
+
         public static string AsArchivedFileKey(this string key, DateTime archiveDate) => $"{Tokens.ArchivePrefix}{Separator}{archiveDate:yyyy-MM-dd}{Separator}{key}";
 
         public static string AsCacheEntryKey(this long id, string versionId) => $"{id.ToString()}:{versionId}";

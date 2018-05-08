@@ -9,11 +9,20 @@ using Microsoft.AspNetCore.Routing;
 
 using Moq;
 
+using NuClear.VStore.Descriptors;
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Objects.ContentValidation.Errors;
 using NuClear.VStore.Sessions;
 using NuClear.VStore.Sessions.ContentValidation.Errors;
+
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Bmp;
+using SixLabors.ImageSharp.Formats.Gif;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
 
 using Xunit;
 
@@ -116,6 +125,37 @@ namespace VStore.UnitTests
             const string ParameterName = "fake";
             var values = new RouteValueDictionary { { ParameterName, value } };
             return constraint.Match(context.Object, route, ParameterName, values, RouteDirection.IncomingRequest);
+        }
+
+        internal static Stream CreateImage(int width, int height, IImageEncoder encoder)
+        {
+            var image = Image.LoadPixelData(new Rgba32[width * height], width, height);
+            var ms = new MemoryStream();
+            image.Save(ms, encoder);
+            ms.Seek(0, SeekOrigin.Begin);
+            return ms;
+        }
+
+        internal static IImageEncoder GetImageEncoder(FileFormat format)
+        {
+            switch (format)
+            {
+                case FileFormat.Png:
+                    return new PngEncoder();
+                case FileFormat.Gif:
+                    return new GifEncoder();
+                case FileFormat.Bmp:
+                    return new BmpEncoder();
+                case FileFormat.Jpg:
+                case FileFormat.Jpeg:
+                    return new JpegEncoder();
+                case FileFormat.Chm:
+                case FileFormat.Svg:
+                case FileFormat.Pdf:
+                    throw new InvalidOperationException("Incompatible image format: " + format.ToString());
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(format), format, null);
+            }
         }
     }
 }

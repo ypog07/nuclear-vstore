@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 
 using Autofac.Extensions.DependencyInjection;
 
+using NuClear.VStore.Configuration;
 using NuClear.VStore.Host.Logging;
 
 using Serilog;
@@ -26,6 +27,11 @@ namespace NuClear.VStore.Host
         private static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                    .ConfigureServices(services => services.AddAutofac())
+                   .ConfigureAppConfiguration((hostingContext, config) =>
+                                                  {
+                                                      var env = hostingContext.HostingEnvironment;
+                                                      config.UseDefaultConfiguration(env.ContentRootPath, env.EnvironmentName);
+                                                  })
                    .UseStartup<Startup>()
                    .UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration))
                    .Build();

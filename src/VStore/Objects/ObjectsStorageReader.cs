@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Amazon.S3;
@@ -25,28 +26,28 @@ using NuClear.VStore.Templates;
 
 namespace NuClear.VStore.Objects
 {
-    public sealed class ObjectsStorageReader
+    public sealed class ObjectsStorageReader : IObjectsStorageReader
     {
+        private readonly CdnOptions _cdnOptions;
         private readonly IS3Client _s3Client;
-        private readonly TemplatesStorageReader _templatesStorageReader;
+        private readonly ITemplatesStorageReader _templatesStorageReader;
         private readonly DistributedLockManager _distributedLockManager;
         private readonly string _bucketName;
         private readonly int _degreeOfParallelism;
-        private readonly Uri _fileStorageEndpoint;
 
         public ObjectsStorageReader(
             CephOptions cephOptions,
-            VStoreOptions vStoreOptions,
+            CdnOptions cdnOptions,
             IS3Client s3Client,
-            TemplatesStorageReader templatesStorageReader,
+            ITemplatesStorageReader templatesStorageReader,
             DistributedLockManager distributedLockManager)
         {
+            _cdnOptions = cdnOptions;
             _s3Client = s3Client;
             _templatesStorageReader = templatesStorageReader;
             _distributedLockManager = distributedLockManager;
             _bucketName = cephOptions.ObjectsBucketName;
             _degreeOfParallelism = cephOptions.DegreeOfParallelism;
-            _fileStorageEndpoint = vStoreOptions.FileStorageEndpoint;
         }
 
         public async Task<ContinuationContainer<IdentifyableObjectRecord<long>>> List(string continuationToken)
@@ -110,7 +111,7 @@ namespace NuClear.VStore.Objects
         public async Task<IVersionedTemplateDescriptor> GetTemplateDescriptor(long id, string versionId)
         {
             var (persistenceDescriptor, _, _, _) =
-                await GetObjectFromS3<ObjectPersistenceDescriptor>(id.AsS3ObjectKey(Tokens.ObjectPostfix), versionId);
+                await GetObjectFromS3<ObjectPersistenceDescriptor>(id.AsS3ObjectKey(Tokens.ObjectPostfix), versionId, default);
             return await _templatesStorageReader.GetTemplateDescriptor(persistenceDescriptor.TemplateId, persistenceDescriptor.TemplateVersionId);
         }
 
@@ -120,7 +121,7 @@ namespace NuClear.VStore.Objects
 
             async Task<(bool IsTruncated, int NextVersionIndex, string NextVersionIdMarker)> ListVersions(int nextVersionIndex, string nextVersionIdMarker)
             {
-                await _distributedLockManager.EnsureLockNotExists(id);
+                await _distributedLockManager.EnsureLockNotExistsAsync(id);
 
                 var response = await _s3Client.ListVersionsAsync(
                                    new ListVersionsRequest
@@ -160,7 +161,7 @@ namespace NuClear.VStore.Objects
                                                            var index = partition.Current.Key;
                                                            var versionInfo = partition.Current.Value;
 
-                                                           descriptors[index] = await GetObjectDescriptor(id, versionInfo.VersionId);
+                                                           descriptors[index] = await GetObjectDescriptor(id, versionInfo.VersionId, CancellationToken.None);
                                                        }
                                                    });
                 await Task.WhenAll(tasks);
@@ -173,7 +174,12 @@ namespace NuClear.VStore.Objects
             var result = await ListVersions(0, null);
             if (objectDescriptors.Count == 0)
             {
-                throw new ObjectNotFoundException($"Object '{id}' not found.");
+                if (!await IsObjectExists(id))
+                {
+                    throw new ObjectNotFoundException($"Object '{id}' not found.");
+                }
+
+                return Array.Empty<ObjectVersionRecord>();
             }
 
             while (result.IsTruncated)
@@ -191,7 +197,7 @@ namespace NuClear.VStore.Objects
                     descriptor.VersionId,
                     --maxVersionIndex,
                     descriptor.LastModified,
-                    new AuthorInfo(descriptor.Metadata.Author, descriptor.Metadata.AuthorLogin, descriptor.Metadata.AuthorLogin),
+                    new AuthorInfo(descriptor.Metadata.Author, descriptor.Metadata.AuthorLogin, descriptor.Metadata.AuthorName),
                     descriptor.Properties,
                     descriptor.Elements.Select(x => new ObjectVersionRecord.ElementRecord(x.TemplateCode, x.Value)).ToList(),
                     descriptor.Metadata.ModifiedElements);
@@ -209,7 +215,7 @@ namespace NuClear.VStore.Objects
                                    .ToList();
         }
 
-        public async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId)
+        public async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken)
         {
             string objectVersionId;
             if (string.IsNullOrEmpty(versionId))
@@ -230,39 +236,30 @@ namespace NuClear.VStore.Objects
             }
 
             var (persistenceDescriptor, objectAuthorInfo, objectLastModified, modifiedElements) =
-                await GetObjectFromS3<ObjectPersistenceDescriptor>(id.AsS3ObjectKey(Tokens.ObjectPostfix), objectVersionId);
+                await GetObjectFromS3<ObjectPersistenceDescriptor>(id.AsS3ObjectKey(Tokens.ObjectPostfix), objectVersionId, cancellationToken);
 
-            var elements = new IObjectElementDescriptor[persistenceDescriptor.Elements.Count];
-            var tasks = persistenceDescriptor.Elements.Select(
-                async (x, index) =>
-                    {
-                        var (elementPersistenceDescriptor, _, elementLastModified, _) =
-                            await GetObjectFromS3<ObjectElementPersistenceDescriptor>(x.Id, x.VersionId);
+            var tasks = persistenceDescriptor.Elements
+                                             .Select(async x =>
+                                                         {
+                                                             var (elementPersistenceDescriptor, _, elementLastModified, _) =
+                                                                 await GetObjectFromS3<ObjectElementPersistenceDescriptor>(x.Id, x.VersionId, cancellationToken);
 
-                        if (elementPersistenceDescriptor.Value is IBinaryElementValue binaryElementValue &&
-                            !string.IsNullOrEmpty(binaryElementValue.Raw))
-                        {
-                            binaryElementValue.DownloadUri = new Uri(_fileStorageEndpoint, binaryElementValue.Raw);
+                                                             SetCdnUris(id, objectVersionId, elementPersistenceDescriptor);
+                                                             return new ObjectElementDescriptor
+                                                                 {
+                                                                     Id = x.Id.AsSubObjectId(),
+                                                                     VersionId = x.VersionId,
+                                                                     LastModified = elementLastModified,
+                                                                     Type = elementPersistenceDescriptor.Type,
+                                                                     TemplateCode = elementPersistenceDescriptor.TemplateCode,
+                                                                     Properties = elementPersistenceDescriptor.Properties,
+                                                                     Constraints = elementPersistenceDescriptor.Constraints,
+                                                                     Value = elementPersistenceDescriptor.Value
+                                                                 };
+                                                         })
+                                             .ToList();
 
-                            if (binaryElementValue is IImageElementValue imageElementValue)
-                            {
-                                imageElementValue.PreviewUri = new Uri(_fileStorageEndpoint, imageElementValue.Raw);
-                            }
-                        }
-
-                        elements[index] = new ObjectElementDescriptor
-                            {
-                                Id = x.Id.AsSubObjectId(),
-                                VersionId = x.VersionId,
-                                LastModified = elementLastModified,
-                                Type = elementPersistenceDescriptor.Type,
-                                TemplateCode = elementPersistenceDescriptor.TemplateCode,
-                                Properties = elementPersistenceDescriptor.Properties,
-                                Constraints = elementPersistenceDescriptor.Constraints,
-                                Value = elementPersistenceDescriptor.Value
-                            };
-                    });
-            await Task.WhenAll(tasks);
+            var elements = await Task.WhenAll(tasks);
 
             var descriptor = new ObjectDescriptor
                                  {
@@ -292,16 +289,35 @@ namespace NuClear.VStore.Objects
                                    {
                                        BucketName = _bucketName,
                                        MaxKeys = 1,
-                                       Prefix = id.ToString() + "/" + Tokens.ObjectPostfix
+                                       Prefix = $"{id}/{Tokens.ObjectPostfix}"
                                    });
             return listResponse.S3Objects.Count != 0;
         }
 
-        private async Task<(T, AuthorInfo, DateTime, IReadOnlyCollection<int>)> GetObjectFromS3<T>(string key, string versionId)
+        public async Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode)
+        {
+            var objectDescriptor = await GetObjectDescriptor(id, versionId, CancellationToken.None);
+            var element = objectDescriptor.Elements.SingleOrDefault(x => x.TemplateCode == templateCode);
+            if (element == null)
+            {
+                throw new ObjectNotFoundException($"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' not found.");
+            }
+
+            if (!(element.Value is IImageElementValue elementValue))
+            {
+                throw new ArgumentException(
+                    $"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' is not an image.",
+                    nameof(templateCode));
+            }
+
+            return elementValue;
+        }
+
+        private async Task<(T, AuthorInfo, DateTime, IReadOnlyCollection<int>)> GetObjectFromS3<T>(string key, string versionId, CancellationToken cancellationToken)
         {
             try
             {
-                using (var getObjectResponse = await _s3Client.GetObjectAsync(_bucketName, key, versionId))
+                using (var getObjectResponse = await _s3Client.GetObjectAsync(_bucketName, key, versionId, cancellationToken))
                 {
                     var metadataWrapper = MetadataCollectionWrapper.For(getObjectResponse.Metadata);
                     var author = metadataWrapper.Read<string>(MetadataElement.Author);
@@ -324,6 +340,34 @@ namespace NuClear.VStore.Objects
             catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 throw new ObjectNotFoundException($"Object '{key}' with versionId '{versionId}' not found.");
+            }
+        }
+
+        private void SetCdnUris(long id, string versionId, IObjectElementPersistenceDescriptor objectElementDescriptor)
+        {
+            if (!(objectElementDescriptor.Value is IBinaryElementValue binaryElementValue) || string.IsNullOrEmpty(binaryElementValue.Raw))
+            {
+                return;
+            }
+
+            binaryElementValue.DownloadUri = _cdnOptions.AsRawUri(binaryElementValue.Raw);
+
+            switch (binaryElementValue)
+            {
+                case ICompositeBitmapImageElementValue compositeBitmapImageElementValue:
+                    compositeBitmapImageElementValue.PreviewUri = _cdnOptions.AsCompositePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
+                    foreach (var image in compositeBitmapImageElementValue.SizeSpecificImages)
+                    {
+                        image.DownloadUri = _cdnOptions.AsRawUri(image.Raw);
+                    }
+
+                    break;
+                case IScalableBitmapImageElementValue scalableBitmapImageElementValue:
+                    scalableBitmapImageElementValue.PreviewUri = _cdnOptions.AsScalablePreviewUri(id, versionId, objectElementDescriptor.TemplateCode);
+                    break;
+                case IImageElementValue imageElementValue:
+                    imageElementValue.PreviewUri = _cdnOptions.AsRawUri(imageElementValue.Raw);
+                    break;
             }
         }
     }

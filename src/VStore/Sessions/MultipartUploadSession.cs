@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 using NuClear.VStore.Descriptors.Sessions;
 using NuClear.VStore.Descriptors.Templates;
+using NuClear.VStore.Sessions.Upload;
 
 namespace NuClear.VStore.Sessions
 {
@@ -10,13 +11,20 @@ namespace NuClear.VStore.Sessions
     {
         private readonly List<FilePart> _parts = new List<FilePart>();
 
-        public MultipartUploadSession(Guid sessionId, SessionDescriptor sessionDescriptor, DateTime expiresAt, IElementDescriptor elementDescriptor, string fileKey, string fileName, string uploadId)
+        public MultipartUploadSession(
+            Guid sessionId,
+            SessionDescriptor sessionDescriptor,
+            DateTime expiresAt,
+            IElementDescriptor elementDescriptor,
+            IUploadedFileMetadata uploadedFileMetadata,
+            string fileKey,
+            string uploadId)
         {
             SessionId = sessionId;
             SessionDescriptor = sessionDescriptor;
             ElementDescriptor = elementDescriptor;
+            UploadedFileMetadata = uploadedFileMetadata;
             FileKey = fileKey;
-            FileName = fileName;
             UploadId = uploadId;
             SessionExpiresAt = expiresAt;
         }
@@ -25,8 +33,8 @@ namespace NuClear.VStore.Sessions
         public SessionDescriptor SessionDescriptor { get; }
         public DateTime SessionExpiresAt { get; }
         public IElementDescriptor ElementDescriptor { get; }
+        public IUploadedFileMetadata UploadedFileMetadata { get; }
         public string FileKey { get; }
-        public string FileName { get; }
         public string UploadId { get; }
         public int NextPartNumber => _parts.Count + 1;
         public IReadOnlyCollection<FilePart> Parts => _parts;

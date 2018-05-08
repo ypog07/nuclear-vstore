@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -32,20 +33,17 @@ namespace NuClear.VStore.S3
         async Task<GetObjectMetadataResponse> IS3Client.GetObjectMetadataAsync(string bucketName, string key, string versionId)
             => await _amazonS3.GetObjectMetadataAsync(bucketName, key, versionId);
 
-        async Task<GetObjectResponse> IS3Client.GetObjectAsync(string bucketName, string key)
-            => await _amazonS3.GetObjectAsync(bucketName, key);
+        async Task<GetObjectResponse> IS3Client.GetObjectAsync(string bucketName, string key, CancellationToken cancellationToken)
+            => await _amazonS3.GetObjectAsync(bucketName, key, cancellationToken);
 
-        async Task<GetObjectResponse> IS3Client.GetObjectAsync(string bucketName, string key, string versionId)
-            => await _amazonS3.GetObjectAsync(bucketName, key, versionId);
+        async Task<GetObjectResponse> IS3Client.GetObjectAsync(string bucketName, string key, string versionId, CancellationToken cancellationToken)
+            => await _amazonS3.GetObjectAsync(bucketName, key, versionId, cancellationToken);
 
         async Task<PutObjectResponse> IS3Client.PutObjectAsync(PutObjectRequest request)
             => await _amazonS3.PutObjectAsync(request);
 
         async Task<DeleteObjectResponse> IS3Client.DeleteObjectAsync(string bucketName, string key)
             => await _amazonS3.DeleteObjectAsync(bucketName, key);
-
-        async Task<DeleteObjectResponse> IS3Client.DeleteObjectAsync(string bucketName, string key, string versionId)
-            => await _amazonS3.DeleteObjectAsync(bucketName, key, versionId);
 
         async Task<CopyObjectResponse> IS3Client.CopyObjectAsync(CopyObjectRequest request)
             => await _amazonS3.CopyObjectAsync(request);

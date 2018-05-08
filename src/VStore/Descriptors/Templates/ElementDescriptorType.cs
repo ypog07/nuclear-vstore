@@ -10,6 +10,9 @@
         FasComment,
         Link,
         Phone,
-        VideoLink
+        VideoLink,
+        Color,
+        CompositeBitmapImage,
+        ScalableBitmapImage
     }
 }

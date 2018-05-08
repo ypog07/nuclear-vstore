@@ -21,9 +21,24 @@ namespace NuClear.VStore.Json
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var obj = JObject.Load(reader);
+            JObject obj;
+            try
+            {
+                obj = JObject.Load(reader);
+            }
+            catch (JsonReaderException ex)
+            {
+                throw new JsonSerializationException("Object descriptor is not a valid JSON", ex);
+            }
+
             var descriptors = obj[Tokens.ElementsToken];
-            var elementDescriptors = descriptors.Select(x => x.ToObject<ObjectElementDescriptor>(serializer)).ToList();
+            if (descriptors == null)
+            {
+                throw new JsonSerializationException($"Object descriptor doesn't contain '{Tokens.ElementsToken}' token");
+            }
+
+            var elementDescriptors = descriptors.Select(x => x.ToObject<ObjectElementDescriptor>(serializer))
+                                                .ToList();
 
             obj.Remove(Tokens.ElementsToken);
 

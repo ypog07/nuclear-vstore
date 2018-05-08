@@ -84,7 +84,7 @@ namespace CloningTool.CloneStrategies
                                                     catch (Exception ex)
                                                     {
                                                         failedIds.Add(position.Id);
-                                                        _logger.LogError(new EventId(), ex, "Position link cloning error: {position}", position);
+                                                        _logger.LogError(default, ex, "Position link cloning error: {position}", position);
                                                     }
                                                 });
 
@@ -102,7 +102,7 @@ namespace CloningTool.CloneStrategies
         {
             if (sourcePosition.Template == null)
             {
-                throw new InvalidOperationException("Source content position has not link with template");
+                throw new InvalidOperationException("Source content position has no link with template");
             }
 
             if (destPosition.Template != null && destPosition.Template.Id != sourcePosition.Template.Id)

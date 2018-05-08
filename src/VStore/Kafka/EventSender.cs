@@ -13,7 +13,7 @@ using NuClear.VStore.Options;
 
 namespace NuClear.VStore.Kafka
 {
-    public sealed class EventSender : IDisposable
+    public sealed class EventSender : IEventSender, IDisposable
     {
         private const int DefaultPartition = 0;
 
@@ -74,7 +74,7 @@ namespace NuClear.VStore.Kafka
             catch (Exception ex)
             {
                 _logger.LogError(
-                    new EventId(),
+                    default,
                     ex,
                     "Error producing to Kafka. Topic: '{kafkaTopic}'. Message: {kafkaMessage}'.",
                     topic,

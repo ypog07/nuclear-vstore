@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,12 +15,15 @@ using Microsoft.Extensions.Logging;
 
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
+using NuClear.VStore.Http;
 using NuClear.VStore.Objects;
+using NuClear.VStore.Sessions;
 
 namespace CloningTool.CloneStrategies
 {
     public abstract class CloneAdvertisementsBase : ICloneStrategy
     {
+        private const int MaxIdsCountToFetch = 30;
         private readonly CloningToolOptions _options;
         private readonly ILogger<CloneAdvertisementsBase> _logger;
         private readonly bool _isTruncatedCloning;
@@ -52,26 +58,42 @@ namespace CloningTool.CloneStrategies
         {
             ResetCounters();
             await EnsureTemplatesAreLoaded();
-            var advertisements = new List<ApiListAdvertisement>(_destTemplates.Count * _options.TruncatedCloneSize);
-            foreach (var templateId in _destTemplates.Keys)
+            List<ApiListAdvertisement> advertisements;
+            if (string.IsNullOrEmpty(_options.AdvertisementIdsFilename))
             {
-                if (_options.AdvertisementsTemplateId.HasValue && templateId != _options.AdvertisementsTemplateId)
+                advertisements = new List<ApiListAdvertisement>(_destTemplates.Count * _options.TruncatedCloneSize);
+                foreach (var templateId in _destTemplates.Keys)
                 {
-                    _logger.LogInformation("Skip fetching ads for template {templateId}", templateId);
-                    continue;
-                }
+                    if (_options.AdvertisementsTemplateId.HasValue && templateId != _options.AdvertisementsTemplateId)
+                    {
+                        _logger.LogInformation("Skip fetching ads for template {templateId}", templateId);
+                        continue;
+                    }
 
-                if (_sourceTemplates.ContainsKey(templateId))
-                {
-                    var templateAds = await SourceRestClient.GetAdvertisementsByTemplateAsync(templateId, _isTruncatedCloning ? _options.TruncatedCloneSize : (int?)null);
-                    _logger.LogInformation("Found {count} ads for template {templateId}", templateAds.Count, templateId);
-                    advertisements.AddRange(_options.AdvertisementsCreatedAtBeginDate.HasValue
-                                            ? templateAds.Where(a => a.CreatedAt >= _options.AdvertisementsCreatedAtBeginDate.Value)
-                                            : templateAds);
+                    if (_sourceTemplates.ContainsKey(templateId))
+                    {
+                        var templateAds = await SourceRestClient.GetAdvertisementsByTemplateAsync(templateId, _isTruncatedCloning ? _options.TruncatedCloneSize : (int?)null);
+                        _logger.LogInformation("Found {count} ads for template {templateId}", templateAds.Count, templateId);
+                        advertisements.AddRange(_options.AdvertisementsCreatedAtBeginDate.HasValue
+                                                ? templateAds.Where(a => a.CreatedAt >= _options.AdvertisementsCreatedAtBeginDate.Value)
+                                                : templateAds);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Template {template} does not exist in source", _destTemplates[templateId]);
+                    }
                 }
-                else
+            }
+            else
+            {
+                var ids = LoadAdvertisementIdsFromFile(_options.AdvertisementIdsFilename);
+                advertisements = new List<ApiListAdvertisement>(ids.Count);
+                for (var i = 0; i <= ids.Count / MaxIdsCountToFetch; ++i)
                 {
-                    _logger.LogWarning("Template {template} does not exist in source", _destTemplates[templateId]);
+                    var portionIds = ids.Skip(MaxIdsCountToFetch * i).Take(MaxIdsCountToFetch);
+                    var portionAds = await SourceRestClient.GetAdvertisementsByIdsAsync(portionIds);
+                    advertisements.AddRange(portionAds);
+                    _logger.LogInformation("Found {count} advertisements for {num} batch", portionAds.Count, i + 1);
                 }
             }
 
@@ -94,7 +116,7 @@ namespace CloningTool.CloneStrategies
                                                     catch (Exception ex)
                                                     {
                                                         failedAds.Add(advertisement);
-                                                        _logger.LogError(new EventId(), ex, "Advertisement {id} cloning error", advertisement.Id);
+                                                        _logger.LogError(default, ex, "Advertisement {id} cloning error", advertisement.Id);
                                                     }
                                                 });
 
@@ -115,6 +137,30 @@ namespace CloningTool.CloneStrategies
             }
 
             return true;
+        }
+
+        private IList<long> LoadAdvertisementIdsFromFile(string fileName)
+        {
+            var lineNumber = 0L;
+            var ids = new List<long>();
+            foreach (var line in File.ReadLines(fileName, Encoding.UTF8))
+            {
+                ++lineNumber;
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                if (!long.TryParse(line, out var id))
+                {
+                    throw new InvalidCastException("Cannot parse id from '" + line + "' on line " + lineNumber.ToString());
+                }
+
+                ids.Add(id);
+            }
+
+            _logger.LogInformation("Total {count} advertisement identifiers has been fetched from file {filename}", ids.Count, fileName);
+            return ids;
         }
 
         private async Task EnsureTemplatesAreLoaded()
@@ -147,7 +193,7 @@ namespace CloningTool.CloneStrategies
                                                         catch (Exception ex)
                                                         {
                                                             hasFailed = true;
-                                                            _logger.LogError(new EventId(), ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
+                                                            _logger.LogError(default, ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
                                                             await Task.Delay(200);
                                                         }
                                                     }
@@ -180,18 +226,18 @@ namespace CloningTool.CloneStrategies
 
         private async Task CloneAdvertisementAsync(ApiListAdvertisement advertisement, bool fetchAdvertisementBeforeCloning)
         {
-            var versionId = string.Empty;
+            ApiObjectDescriptor destDescriptor = null;
             var objectId = advertisement.Id.ToString();
             if (fetchAdvertisementBeforeCloning)
             {
-                versionId = await DestRestClient.GetAdvertisementVersionAsync(advertisement.Id);
-                _logger.LogInformation("Object {id} has been fetched from destination preliminarily with version {versionId}", objectId, versionId);
+                destDescriptor = await DestRestClient.GetAdvertisementAsync(advertisement.Id);
+                _logger.LogInformation("Object {id} has been fetched from destination preliminarily with version {versionId}", objectId, destDescriptor.VersionId);
             }
 
-            if (string.IsNullOrEmpty(versionId))
+            var versionId = destDescriptor?.VersionId;
+            var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(advertisement.Id);
+            if (destDescriptor == null)
             {
-                var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(advertisement.Id);
-                sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                 if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type)))
                 {
                     var newAm = await DestRestClient.CreateAdvertisementPrototypeAsync(advertisement.Template.Id, advertisement.Language.ToString(), advertisement.Firm.Id);
@@ -200,11 +246,12 @@ namespace CloningTool.CloneStrategies
 
                 try
                 {
+                    sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                     versionId = await DestRestClient.CreateAdvertisementAsync(advertisement.Id, advertisement.Firm.Id, sourceDescriptor);
                 }
                 catch (ObjectAlreadyExistsException ex)
                 {
-                    _logger.LogWarning(new EventId(), ex, "Object {id} already exists in destination, try to continue execution", objectId);
+                    _logger.LogWarning(default, ex, "Object {id} already exists in destination, try to continue execution", objectId);
                 }
             }
 
@@ -214,19 +261,19 @@ namespace CloningTool.CloneStrategies
                 Interlocked.Increment(ref _selectedToWhitelistCount);
             }
 
-            if (advertisement.Moderation != null && advertisement.Moderation.Status != ModerationStatus.OnApproval
-                && advertisement.Moderation.Status != ModerationStatus.NominallyApproved)
+            if (sourceDescriptor.Moderation != null && sourceDescriptor.Moderation.Status != ModerationStatus.OnApproval
+                && sourceDescriptor.Moderation.Status != ModerationStatus.NominallyApproved)
             {
                 if (string.IsNullOrEmpty(versionId))
                 {
                     _logger.LogWarning("VersionId for object {id} is unknown, need to get latest version", objectId);
-                    versionId = await SourceRestClient.GetAdvertisementVersionAsync(advertisement.Id);
+                    versionId = (await DestRestClient.GetAdvertisementAsync(advertisement.Id)).VersionId;
                 }
 
-                await DestRestClient.UpdateAdvertisementModerationStatusAsync(objectId, versionId, advertisement.Moderation);
+                await DestRestClient.UpdateAdvertisementModerationStatusAsync(objectId, versionId, sourceDescriptor.Moderation);
             }
 
-            switch (advertisement.Moderation?.Status)
+            switch (sourceDescriptor.Moderation?.Status)
             {
                 case null:
                     break;
@@ -243,32 +290,73 @@ namespace CloningTool.CloneStrategies
                     Interlocked.Increment(ref _nominallyApprovedCount);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(advertisement.Moderation), advertisement.Moderation.Status, "Unsupported moderation status");
+                    throw new ArgumentOutOfRangeException(nameof(sourceDescriptor.Moderation), sourceDescriptor.Moderation.Status, "Unsupported moderation status");
             }
         }
 
         private async Task SendBinaryContent(ApiObjectDescriptor sourceDescriptor, ApiObjectDescriptor newAdvertisement)
         {
-            foreach (var element in sourceDescriptor.Elements)
+            var binaryElements = sourceDescriptor.Elements.Where(e => IsBinaryAdvertisementElementType(e.Type));
+            foreach (var element in binaryElements)
             {
-                if (IsBinaryAdvertisementElementType(element.Type))
+                var value = element.Value as IBinaryElementValue
+                                         ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} binary element {element.TemplateCode} value");
+                if (string.IsNullOrEmpty(value.Raw))
                 {
-                    var value = element.Value as IBinaryElementValue
-                                ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} binary element {element.TemplateCode} value");
-                    if (string.IsNullOrEmpty(value.Raw))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    var fileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
-                    var matchedElement = newAdvertisement.Elements.First(e => e.TemplateCode == element.TemplateCode);
-                    EnsureUploadUrlIsValid(sourceDescriptor.Id, matchedElement);
-                    var res = await DestRestClient.UploadFileAsync(sourceDescriptor.Id,
-                                                                   new Uri(matchedElement.UploadUrl),
-                                                                   value.Filename,
-                                                                   fileData);
-                    Interlocked.Increment(ref _uploadedBinariesCount);
-                    element.Value = res;
+                var fileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
+                var matchedElement = newAdvertisement.Elements.First(e => e.TemplateCode == element.TemplateCode);
+                EnsureUploadUrlIsValid(sourceDescriptor.Id, matchedElement);
+                var uploadResponse = await DestRestClient.UploadFileAsync(
+                                         sourceDescriptor.Id,
+                                         new Uri(matchedElement.UploadUrl),
+                                         value.Filename,
+                                         fileData);
+                Interlocked.Increment(ref _uploadedBinariesCount);
+
+                if (element.Type == ElementDescriptorType.CompositeBitmapImage)
+                {
+                    var compositeBitmapImageElementValue = element.Value as ICompositeBitmapImageElementValue
+                                    ?? throw new InvalidOperationException($"Cannot cast advertisement {sourceDescriptor.Id} composite image element {element.TemplateCode} value");
+
+                    var sizeSpecificImagesUploadTasks = compositeBitmapImageElementValue
+                            .SizeSpecificImages
+                            .Select(async image =>
+                                        {
+                                            var imageFileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, image.DownloadUri);
+                                            var headers = new[]
+                                                {
+                                                    new NameValueHeaderValue(HeaderNames.AmsFileType, FileType.SizeSpecificBitmapImage.ToString()),
+                                                    new NameValueHeaderValue(HeaderNames.AmsImageSize, image.Size.ToString())
+                                                };
+
+                                            var imageUploadResponse = await DestRestClient.UploadFileAsync(
+                                                                                sourceDescriptor.Id,
+                                                                                new Uri(matchedElement.UploadUrl),
+                                                                                image.Filename,
+                                                                                imageFileData,
+                                                                                headers);
+                                            Interlocked.Increment(ref _uploadedBinariesCount);
+                                            return new SizeSpecificImage
+                                                {
+                                                    Size = image.Size,
+                                                    Raw = imageUploadResponse.Raw
+                                                };
+                                        })
+                            .ToList();
+
+                    element.Value = new CompositeBitmapImageElementValue
+                        {
+                            Raw = uploadResponse.Raw,
+                            CropArea = compositeBitmapImageElementValue.CropArea,
+                            SizeSpecificImages = await Task.WhenAll(sizeSpecificImagesUploadTasks)
+                        };
+                }
+                else
+                {
+                    element.Value = uploadResponse;
                 }
             }
         }
@@ -296,10 +384,13 @@ namespace CloningTool.CloneStrategies
                 case ElementDescriptorType.Link:
                 case ElementDescriptorType.Phone:
                 case ElementDescriptorType.VideoLink:
+                case ElementDescriptorType.Color:
                     return false;
                 case ElementDescriptorType.BitmapImage:
                 case ElementDescriptorType.VectorImage:
                 case ElementDescriptorType.Article:
+                case ElementDescriptorType.CompositeBitmapImage:
+                case ElementDescriptorType.ScalableBitmapImage:
                     return true;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(elementDescriptorType), elementDescriptorType, "Unknown advertisement's element type");

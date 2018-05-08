@@ -16,9 +16,9 @@ namespace CloningTool.CloneStrategies
     public class ReloadFiles : ICloneStrategy
     {
         private const string IdentifiersFilename = "ids.txt";
-        private readonly ILogger<CloneAdvertisementsBase> _logger;
+        private readonly ILogger<ReloadFiles> _logger;
 
-        protected ReloadFiles(IRestClientFacade destRestClient, ILogger<CloneAdvertisementsBase> logger)
+        public ReloadFiles(IRestClientFacade destRestClient, ILogger<ReloadFiles> logger)
         {
             _logger = logger;
             DestRestClient = destRestClient;
@@ -112,7 +112,7 @@ namespace CloningTool.CloneStrategies
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(new EventId(), ex, "Error with advertisement {id}", id);
+                    _logger.LogError(default, ex, "Error with advertisement {id}", id);
                 }
             }
 

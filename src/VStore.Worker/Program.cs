@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using NuClear.VStore.Configuration;
 using NuClear.VStore.Locks;
 using NuClear.VStore.Options;
 using NuClear.VStore.S3;
@@ -34,7 +33,6 @@ using NuClear.VStore.Prometheus;
 
 using RedLockNet;
 using RedLockNet.SERedis;
-using RedLockNet.SERedis.Configuration;
 
 using Serilog;
 
@@ -49,14 +47,10 @@ namespace NuClear.VStore.Worker
 
         public static void Main(string[] args)
         {
-            var env = (Environment.GetEnvironmentVariable("VSTORE_ENVIRONMENT") ?? "Production").ToLower();
-
+            var env = Environment.GetEnvironmentVariable("VSTORE_ENVIRONMENT") ?? "Production";
             var basePath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
             var configuration = new ConfigurationBuilder()
-                .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json")
-                .AddJsonFile($"appsettings.{env}.json")
-                .AddEnvironmentVariables("VSTORE_")
+                .UseDefaultConfiguration(basePath, env)
                 .Build();
 
             var container = Bootstrap(configuration);
@@ -118,9 +112,10 @@ namespace NuClear.VStore.Worker
                                 {
                                     commandConfig.Description = "Produce events of created versions of objects and/or binary files references.";
                                     commandConfig.HelpOption(CommandLine.HelpOptionTemplate);
-                                    commandConfig.Argument(CommandLine.Arguments.Mode,
-                                                           $"Set '{CommandLine.ArgumentValues.Versions}' to produce events of created versions of objects, " +
-                                                           $"and '{CommandLine.ArgumentValues.Binaries}' to produce events of binary files references.");
+                                    commandConfig.Argument(
+                                        CommandLine.Arguments.Mode,
+                                        $"Set '{CommandLine.ArgumentValues.Versions}' to produce events of created versions of objects, " +
+                                        $"and '{CommandLine.ArgumentValues.Binaries}' to produce events of binary files references.");
                                     commandConfig.OnExecute(() => Run(commandConfig, jobRunner, cts));
                                 });
                     });
@@ -143,7 +138,7 @@ namespace NuClear.VStore.Worker
             }
             catch (Exception ex)
             {
-                logger.LogCritical(new EventId(), ex, "Unexpected error occured. See logs for details.");
+                logger.LogCritical(default, ex, "Unexpected error occured. See logs for details.");
                 exitCode = -1;
             }
             finally
@@ -161,7 +156,7 @@ namespace NuClear.VStore.Worker
                 .AddOptions()
                 .Configure<CephOptions>(configuration.GetSection("Ceph"))
                 .Configure<DistributedLockOptions>(configuration.GetSection("DistributedLocks"))
-                .Configure<VStoreOptions>(configuration.GetSection("VStore"))
+                .Configure<CdnOptions>(configuration.GetSection("Cdn"))
                 .Configure<KafkaOptions>(configuration.GetSection("Kafka"))
                 .AddLogging(x => x.AddSerilog(CreateLogger(configuration), true));
 
@@ -170,12 +165,12 @@ namespace NuClear.VStore.Worker
 
             builder.Register(x => x.Resolve<IOptions<CephOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<DistributedLockOptions>>().Value).SingleInstance();
-            builder.Register(x => x.Resolve<IOptions<VStoreOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<CdnOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
             builder.RegisterType<MemoryCache>().As<IMemoryCache>().SingleInstance();
 
-            builder.RegisterType<EventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
 
             builder.RegisterType<JobRegistry>().SingleInstance();
             builder.RegisterType<JobRunner>().SingleInstance();
@@ -261,11 +256,13 @@ namespace NuClear.VStore.Worker
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<ITemplatesStorageReader>()
                    .InstancePerDependency();
             builder.RegisterType<ObjectsStorageReader>()
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsStorageReader>()
                    .InstancePerDependency();
             builder.RegisterType<MetricsProvider>().SingleInstance();
 

@@ -1,5 +1,5 @@
 ﻿using NuClear.VStore.Descriptors;
-using NuClear.VStore.Host.Routing;
+using NuClear.VStore.Http.Core.Routing;
 
 using Xunit;
 

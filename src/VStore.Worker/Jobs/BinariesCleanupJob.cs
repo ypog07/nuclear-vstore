@@ -108,7 +108,7 @@ namespace NuClear.VStore.Worker.Jobs
                              (ex, duration) =>
                                  {
                                      logger.LogError(
-                                         new EventId(),
+                                         default,
                                          ex,
                                          "Unexpected error occured: {errorMessage}. The {workerJobType} will retry in {delay}.",
                                          ex.Message,

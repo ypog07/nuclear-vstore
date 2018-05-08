@@ -16,16 +16,22 @@ namespace NuClear.VStore.Json
         {
             serializer.Converters.Remove(this);
 
-            var json = JObject.FromObject(value, serializer);
-            json.WriteTo(writer);
+            var persistenceDescriptor = (IObjectElementPersistenceDescriptor)value;
+            persistenceDescriptor.NormalizeValue();
+            serializer.Serialize(writer, persistenceDescriptor);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             var json = JObject.Load(reader);
 
-            var valueToken = json[Tokens.ValueToken];
             var elementDescriptor = json.ToObject<IElementDescriptor>(serializer);
+
+            var valueToken = json[Tokens.ValueToken];
+            if (valueToken == null)
+            {
+                throw new JsonSerializationException($"Element with templateCode {elementDescriptor.TemplateCode} has no '{Tokens.ValueToken}' property.");
+            }
 
             var value = valueToken.AsObjectElementValue(elementDescriptor.Type);
 

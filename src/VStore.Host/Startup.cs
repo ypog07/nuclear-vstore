@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 using Amazon.Runtime;
@@ -28,12 +29,12 @@ using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
-using NuClear.VStore.Host.Json;
-using NuClear.VStore.Host.Middleware;
 using NuClear.VStore.Host.Options;
-using NuClear.VStore.Host.Routing;
-using NuClear.VStore.Host.Swashbuckle;
 using NuClear.VStore.Http;
+using NuClear.VStore.Http.Core.Json;
+using NuClear.VStore.Http.Core.Middleware;
+using NuClear.VStore.Http.Core.Routing;
+using NuClear.VStore.Http.Core.Swashbuckle;
 using NuClear.VStore.Json;
 using NuClear.VStore.Kafka;
 using NuClear.VStore.Locks;
@@ -71,27 +72,25 @@ namespace NuClear.VStore.Host
                 new ObjectDescriptorJsonConverter()
             };
 
-        private readonly IConfigurationRoot _configuration;
+        private readonly IConfiguration _configuration;
 
-        public Startup(IHostingEnvironment env)
+        public Startup(IConfiguration configuration)
         {
-            _configuration = new ConfigurationBuilder()
-                .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json")
-                .AddJsonFile($"appsettings.{env.EnvironmentName?.ToLower()}.json")
-                .AddEnvironmentVariables("VSTORE_")
-                .Build();
+            _configuration = configuration;
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var jwtConfiguration = _configuration.GetSection("Jwt");
             services
                  .AddOptions()
                  .Configure<CephOptions>(_configuration.GetSection("Ceph"))
                  .Configure<DistributedLockOptions>(_configuration.GetSection("DistributedLocks"))
-                 .Configure<VStoreOptions>(_configuration.GetSection("VStore"))
-                 .Configure<JwtOptions>(_configuration.GetSection("Jwt"))
+                 .Configure<UploadFileOptions>(_configuration.GetSection("VStore"))
+                 .Configure<SessionOptions>(_configuration.GetSection("VStore"))
+                 .Configure<CdnOptions>(_configuration.GetSection("VStore"))
+                 .Configure<JwtOptions>(jwtConfiguration)
                  .Configure<KafkaOptions>(_configuration.GetSection("Kafka"))
                  .Configure<RouteOptions>(options => options.ConstraintMap.Add("lang", typeof(LanguageRouteConstraint)));
 
@@ -122,16 +121,18 @@ namespace NuClear.VStore.Host
                             });
 
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                    .AddJwtBearer(options => {
+                    .AddJwtBearer(options =>
+                                      {
+                                          var jwtOptions = jwtConfiguration.Get<JwtOptions>();
                                           options.TokenValidationParameters = new TokenValidationParameters
                                               {
                                                   ValidateIssuer = true,
-                                                  ValidIssuer = _configuration["Jwt:Issuer"],
+                                                  ValidIssuer = jwtOptions.Issuer,
 
                                                   ValidateAudience = false,
 
                                                   ValidateIssuerSigningKey = true,
-                                                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"])),
+                                                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtOptions.SecretKey)),
 
                                                   ValidateLifetime = false,
                                                   LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
@@ -164,8 +165,14 @@ namespace NuClear.VStore.Host
                                     Type = "apiKey"
                                 });
 
+                        options.AddSecurityRequirement(new Dictionary<string, IEnumerable<string>>
+                            {
+                                { "Bearer", new string[] { } }
+                            });
+
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
+                        options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Host)}.xml"));
                     });
         }
 
@@ -173,7 +180,9 @@ namespace NuClear.VStore.Host
         {
             builder.Register(x => x.Resolve<IOptions<CephOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<DistributedLockOptions>>().Value).SingleInstance();
-            builder.Register(x => x.Resolve<IOptions<VStoreOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<UploadFileOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<SessionOptions>>().Value).SingleInstance();
+            builder.Register(x => x.Resolve<IOptions<CdnOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
@@ -259,6 +268,7 @@ namespace NuClear.VStore.Host
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<ITemplatesStorageReader>()
                    .SingleInstance();
             builder.RegisterType<TemplatesManagementService>()
                    .WithParameter(
@@ -269,13 +279,17 @@ namespace NuClear.VStore.Host
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsStorageReader>()
+                   .PreserveExistingDefaults()
                    .SingleInstance();
             builder.RegisterType<ObjectsManagementService>()
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsManagementService>()
+                   .PreserveExistingDefaults()
                    .SingleInstance();
-            builder.RegisterType<EventSender>().SingleInstance();
+            builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();
         }
 
@@ -330,9 +344,10 @@ namespace NuClear.VStore.Host
                                 options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName.ToUpperInvariant());
                             }
 
-                            options.DocExpansion("list");
-                            options.EnabledValidator();
-                            options.ShowRequestHeaders();
+                            options.DocExpansion(DocExpansion.None);
+                            options.EnableValidator();
+                            options.ShowExtensions();
+                            options.DisplayRequestDuration();
                         });
             }
         }
