@@ -185,6 +185,7 @@ namespace NuClear.VStore.Host
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
+            builder.RegisterType<ReliableRedLockFactory>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -194,8 +195,7 @@ namespace NuClear.VStore.Host
                                    return new InMemoryLockFactory();
                                }
 
-                               var loggerFactory = x.Resolve<ILoggerFactory>();
-                               return new ReliableRedLockFactory(lockOptions, loggerFactory);
+                               return x.Resolve<ReliableRedLockFactory>();
                            })
                    .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()

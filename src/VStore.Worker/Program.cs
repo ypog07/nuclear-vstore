@@ -176,6 +176,7 @@ namespace NuClear.VStore.Worker
             builder.RegisterType<BinariesCleanupJob>().SingleInstance();
             builder.RegisterType<ObjectEventsProcessingJob>().SingleInstance();
 
+            builder.RegisterType<ReliableRedLockFactory>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -185,8 +186,7 @@ namespace NuClear.VStore.Worker
                                    return new InMemoryLockFactory();
                                }
 
-                               var loggerFactory = x.Resolve<ILoggerFactory>();
-                               return new ReliableRedLockFactory(lockOptions, loggerFactory);
+                               return x.Resolve<ReliableRedLockFactory>();
                            })
                    .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()

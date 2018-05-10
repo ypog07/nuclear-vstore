@@ -222,13 +222,12 @@ namespace NuClear.VStore.Locks
                             {
                                 try
                                 {
-                                    _lock.EnterWriteLock();
-
                                     var (keepAlive, multiplexers) = await Initialize(lockOptions);
 
                                     timeout = keepAlive;
                                     redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
 
+                                    _lock.EnterWriteLock();
                                     if (_innerFactory == null)
                                     {
                                         _innerFactory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
