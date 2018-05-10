@@ -25,18 +25,21 @@ namespace NuClear.VStore.Locks
         private const int DefaultSyncTimeout = 1000;
         private const int DefaultKeepAlive = 1;
 
+        private static ILogger<ConnectionMultiplexer> _redisLogger;
+
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger<ReliableRedLockFactory> _logger;
 
         private RedLockFactory _innerFactory;
+        private IList<IConnectionMultiplexer> _multiplexers = new List<IConnectionMultiplexer>();
 
         public ReliableRedLockFactory(DistributedLockOptions lockOptions, ILoggerFactory loggerFactory)
         {
             _loggerFactory = loggerFactory;
 
-            _logger = _loggerFactory.CreateLogger<ReliableRedLockFactory>();
+            _redisLogger = _loggerFactory.CreateLogger<ConnectionMultiplexer>();
+
             RunRedLockFactoryResilienceTask(lockOptions);
         }
 
@@ -66,7 +69,12 @@ namespace NuClear.VStore.Locks
             }
         }
 
-        public IRedLock CreateLock(string resource, TimeSpan expiryTime, TimeSpan waitTime, TimeSpan retryTime, CancellationToken? cancellationToken = null)
+        public IRedLock CreateLock(
+            string resource,
+            TimeSpan expiryTime,
+            TimeSpan waitTime,
+            TimeSpan retryTime,
+            CancellationToken? cancellationToken = null)
         {
             try
             {
@@ -79,7 +87,12 @@ namespace NuClear.VStore.Locks
             }
         }
 
-        public Task<IRedLock> CreateLockAsync(string resource, TimeSpan expiryTime, TimeSpan waitTime, TimeSpan retryTime, CancellationToken? cancellationToken = null)
+        public Task<IRedLock> CreateLockAsync(
+            string resource,
+            TimeSpan expiryTime,
+            TimeSpan waitTime,
+            TimeSpan retryTime,
+            CancellationToken? cancellationToken = null)
         {
             try
             {
@@ -96,10 +109,16 @@ namespace NuClear.VStore.Locks
         {
             _cancellationTokenSource.Cancel();
             _lock.Dispose();
+
+            foreach (var multiplexer in _multiplexers)
+            {
+                multiplexer.Dispose();
+            }
+
             _innerFactory?.Dispose();
         }
 
-        private static (int, IList<RedLockMultiplexer>) Initialize(DistributedLockOptions lockOptions, ILogger logger)
+        private static (int, IList<IConnectionMultiplexer>) Initialize(DistributedLockOptions lockOptions)
         {
             var endpoints = lockOptions.GetEndPoints();
             if (endpoints == null || !endpoints.Any())
@@ -107,12 +126,12 @@ namespace NuClear.VStore.Locks
                 throw new ArgumentException("No endpoints specified.");
             }
 
-            var multiplexers = new List<RedLockMultiplexer>(endpoints.Count);
+            var multiplexers = new List<IConnectionMultiplexer>(endpoints.Count);
             var keepAlive = lockOptions.KeepAlive ?? DefaultKeepAlive;
-            var logWriter = new LogWriter(logger);
+            var logWriter = new LogWriter(_redisLogger);
             foreach (var endpoint in endpoints)
             {
-                logger.LogInformation(
+                _redisLogger.LogInformation(
                     "{host}:{port} will be used as RedLock endpoint.",
                     endpoint.Host,
                     endpoint.Port);
@@ -120,7 +139,7 @@ namespace NuClear.VStore.Locks
                 var redisConfig = new ConfigurationOptions
                     {
                         DefaultVersion = new Version(4, 0),
-                        AbortOnConnectFail = false,
+                        AbortOnConnectFail = true,
                         EndPoints = { new DnsEndPoint(endpoint.Host, endpoint.Port) },
                         CommandMap = CommandMap.Create(new HashSet<string> { "SUBSCRIBE" }, available: false),
                         Password = lockOptions.Password,
@@ -132,50 +151,43 @@ namespace NuClear.VStore.Locks
                     };
 
                 var multiplexer = ConnectionMultiplexer.Connect(redisConfig, logWriter);
-                multiplexer.ConnectionFailed +=
-                    (sender, args) =>
-                        {
-                            logger.LogWarning(
-                                args.Exception,
-                                "ConnectionFailed: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
-                                GetFriendlyName(args.EndPoint),
-                                args.ConnectionType,
-                                args.FailureType);
-                        };
-
-                multiplexer.ConnectionRestored +=
-                    (sender, args) =>
-                        {
-                            logger.LogWarning(
-                                args.Exception,
-                                "ConnectionRestored: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
-                                GetFriendlyName(args.EndPoint),
-                                args.ConnectionType,
-                                args.FailureType);
-                        };
-
-                multiplexer.InternalError +=
-                    (sender, args) =>
-                        {
-                            logger.LogWarning(
-                                args.Exception,
-                                "InternalError: {endpoint} ConnectionType: {connectionType} Origin: {origin}",
-                                GetFriendlyName(args.EndPoint),
-                                args.ConnectionType,
-                                args.Origin);
-                        };
-
-                multiplexer.ErrorMessage +=
-                    (sender, args) =>
-                        {
-                            logger.LogWarning("ErrorMessage: {endpoint} Message: {message}", GetFriendlyName(args.EndPoint), args.Message);
-                        };
+                multiplexer.ConnectionFailed += OnConnectionFailed;
+                multiplexer.ConnectionRestored += OnConnectionRestored;
+                multiplexer.InternalError += OnInternalError;
+                multiplexer.ErrorMessage += OnInternalError;
 
                 multiplexers.Add(multiplexer);
             }
 
             return (keepAlive, multiplexers);
         }
+
+        private static void OnConnectionFailed(object sender, ConnectionFailedEventArgs args)
+            => _redisLogger.LogWarning(
+                args.Exception,
+                "ConnectionFailed: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
+                GetFriendlyName(args.EndPoint),
+                args.ConnectionType,
+                args.FailureType);
+
+        private static void OnConnectionRestored(object sender, ConnectionFailedEventArgs args)
+            => _redisLogger.LogWarning(
+                args.Exception,
+                "ConnectionRestored: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
+                GetFriendlyName(args.EndPoint),
+                args.ConnectionType,
+                args.FailureType);
+
+        private static void OnInternalError(object sender, InternalErrorEventArgs args)
+            => _redisLogger.LogWarning(
+                args.Exception,
+                "InternalError: {endpoint} ConnectionType: {connectionType} Origin: {origin}",
+                GetFriendlyName(args.EndPoint),
+                args.ConnectionType,
+                args.Origin);
+
+        private static void OnInternalError(object sender, RedisErrorEventArgs args)
+            => _redisLogger.LogWarning("ErrorMessage: {endpoint} Message: {message}", GetFriendlyName(args.EndPoint), args.Message);
 
         private static string GetFriendlyName(EndPoint endPoint)
         {
@@ -195,8 +207,9 @@ namespace NuClear.VStore.Locks
             Task.Factory.StartNew(
                 async () =>
                     {
+                        var logger = _loggerFactory.CreateLogger<ReliableRedLockFactory>();
                         var timeout = DefaultKeepAlive;
-                        var connections = new List<(EndPoint EndPoint, IConnectionMultiplexer Multiplexer)>();
+                        var redLockMultiplexers = new List<RedLockMultiplexer>();
 
                         var recreationNeeded = true;
                         while (!_cancellationTokenSource.IsCancellationRequested)
@@ -205,23 +218,42 @@ namespace NuClear.VStore.Locks
                             {
                                 try
                                 {
-                                    var (keepAlive, multiplexers) = Initialize(lockOptions, _logger);
-                                    timeout = keepAlive;
-                                    connections = multiplexers
-                                                  .Select(x => (x.ConnectionMultiplexer.GetEndPoints()[0], x.ConnectionMultiplexer))
-                                                  .ToList();
-
                                     _lock.EnterWriteLock();
+
+                                    var (keepAlive, multiplexers) = Initialize(lockOptions);
+
+                                    timeout = keepAlive;
+                                    redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
+
                                     if (_innerFactory == null)
                                     {
-                                        _innerFactory = RedLockFactory.Create(multiplexers, _loggerFactory);
+                                        _innerFactory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
+                                        _multiplexers = multiplexers;
                                     }
                                     else
                                     {
                                         var oldFactory = _innerFactory;
-                                        using (oldFactory)
+                                        var oldMultiplexers = _multiplexers;
+                                        try
                                         {
-                                            _innerFactory = RedLockFactory.Create(multiplexers, _loggerFactory);
+                                            _innerFactory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
+                                            _multiplexers = multiplexers;
+                                        }
+                                        finally
+                                        {
+                                            foreach (var multiplexer in oldMultiplexers)
+                                            {
+                                                var endpoint = multiplexer.GetEndPoints()[0];
+                                                logger.LogTrace("Disposing connection to endpoint {endpoint}...", GetFriendlyName(endpoint));
+
+                                                multiplexer.ConnectionFailed -= OnConnectionFailed;
+                                                multiplexer.ConnectionRestored -= OnConnectionRestored;
+                                                multiplexer.InternalError -= OnInternalError;
+                                                multiplexer.ErrorMessage -= OnInternalError;
+                                                multiplexer.Dispose();
+                                            }
+
+                                            oldFactory.Dispose();
                                         }
                                     }
 
@@ -229,7 +261,7 @@ namespace NuClear.VStore.Locks
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger.LogError(ex, "Unexpected error occured while connecting to Redis servers. Will try again.");
+                                    logger.LogError(ex, "Unexpected error occured while connecting to Redis servers. Will try again.");
                                 }
                                 finally
                                 {
@@ -237,20 +269,22 @@ namespace NuClear.VStore.Locks
                                 }
                             }
 
-                            for (var i = 0; i < connections.Count; ++i)
+                            foreach (var redLockMultiplexer in redLockMultiplexers)
                             {
-                                var endpoint = connections[i].EndPoint;
-                                var multiplexer = connections[i].Multiplexer;
+                                var endpoint = redLockMultiplexer.ConnectionMultiplexer.GetEndPoints()[0];
+                                var multiplexer = redLockMultiplexer.ConnectionMultiplexer;
                                 try
                                 {
-                                    _logger.LogTrace("Cheking endpoint {endpoint} for availablity.", GetFriendlyName(endpoint));
+                                    logger.LogTrace("Checking RedLock endpoint {endpoint} for availablity.", GetFriendlyName(endpoint));
                                     var server = multiplexer.GetServer(endpoint);
                                     server.Ping();
-                                    _logger.LogTrace("Cheking endpoint {endpoint} is available.", GetFriendlyName(endpoint));
+                                    logger.LogTrace("RedLock endpoint {endpoint} is available.", GetFriendlyName(endpoint));
                                 }
                                 catch
                                 {
-                                    _logger.LogWarning("RedLock endpoint {endpoint} is unavailable.`All connections will be recreated.", GetFriendlyName(endpoint));
+                                    logger.LogWarning(
+                                        "RedLock endpoint {endpoint} is unavailable. All connections will be recreated.",
+                                        GetFriendlyName(endpoint));
                                     recreationNeeded = true;
                                 }
                             }
