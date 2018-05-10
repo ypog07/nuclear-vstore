@@ -118,7 +118,7 @@ namespace NuClear.VStore.Locks
             _innerFactory?.Dispose();
         }
 
-        private static (int, IList<IConnectionMultiplexer>) Initialize(DistributedLockOptions lockOptions)
+        private static async Task<(int, IList<IConnectionMultiplexer>)> Initialize(DistributedLockOptions lockOptions)
         {
             var endpoints = lockOptions.GetEndPoints();
             if (endpoints == null || !endpoints.Any())
@@ -129,35 +129,39 @@ namespace NuClear.VStore.Locks
             var multiplexers = new List<IConnectionMultiplexer>(endpoints.Count);
             var keepAlive = lockOptions.KeepAlive ?? DefaultKeepAlive;
             var logWriter = new LogWriter(_redisLogger);
-            foreach (var endpoint in endpoints)
-            {
-                _redisLogger.LogInformation(
-                    "{host}:{port} will be used as RedLock endpoint.",
-                    endpoint.Host,
-                    endpoint.Port);
 
-                var redisConfig = new ConfigurationOptions
+            var tasks = endpoints.Select(
+                async endpoint =>
                     {
-                        DefaultVersion = new Version(4, 0),
-                        AbortOnConnectFail = true,
-                        EndPoints = { new DnsEndPoint(endpoint.Host, endpoint.Port) },
-                        CommandMap = CommandMap.Create(new HashSet<string> { "SUBSCRIBE" }, available: false),
-                        Password = lockOptions.Password,
-                        ConnectTimeout = lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
-                        SyncTimeout = lockOptions.SyncTimeout ?? DefaultSyncTimeout,
-                        KeepAlive = keepAlive,
-                        // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
-                        ConfigCheckSeconds = keepAlive
-                    };
+                        _redisLogger.LogInformation(
+                            "{host}:{port} will be used as RedLock endpoint.",
+                            endpoint.Host,
+                            endpoint.Port);
 
-                var multiplexer = ConnectionMultiplexer.Connect(redisConfig, logWriter);
-                multiplexer.ConnectionFailed += OnConnectionFailed;
-                multiplexer.ConnectionRestored += OnConnectionRestored;
-                multiplexer.InternalError += OnInternalError;
-                multiplexer.ErrorMessage += OnInternalError;
+                        var redisConfig = new ConfigurationOptions
+                            {
+                                DefaultVersion = new Version(4, 0),
+                                AbortOnConnectFail = false,
+                                EndPoints = { new DnsEndPoint(endpoint.Host, endpoint.Port) },
+                                CommandMap = CommandMap.Create(new HashSet<string> { "SUBSCRIBE" }, available: false),
+                                Password = lockOptions.Password,
+                                ConnectTimeout = lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
+                                SyncTimeout = lockOptions.SyncTimeout ?? DefaultSyncTimeout,
+                                KeepAlive = keepAlive,
+                                // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
+                                ConfigCheckSeconds = keepAlive
+                            };
 
-                multiplexers.Add(multiplexer);
-            }
+                        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConfig, logWriter);
+                        multiplexer.ConnectionFailed += OnConnectionFailed;
+                        multiplexer.ConnectionRestored += OnConnectionRestored;
+                        multiplexer.InternalError += OnInternalError;
+                        multiplexer.ErrorMessage += OnInternalError;
+
+                        multiplexers.Add(multiplexer);
+                    });
+
+            await Task.WhenAll(tasks);
 
             return (keepAlive, multiplexers);
         }
@@ -220,7 +224,7 @@ namespace NuClear.VStore.Locks
                                 {
                                     _lock.EnterWriteLock();
 
-                                    var (keepAlive, multiplexers) = Initialize(lockOptions);
+                                    var (keepAlive, multiplexers) = await Initialize(lockOptions);
 
                                     timeout = keepAlive;
                                     redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
