@@ -49,7 +49,6 @@ using Prometheus.Client.Collectors;
 using Prometheus.Client.Owin;
 
 using RedLockNet;
-using RedLockNet.SERedis;
 
 using Swashbuckle.AspNetCore.Swagger;
 
@@ -186,7 +185,6 @@ namespace NuClear.VStore.Host
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
-            builder.RegisterType<RedLockMultiplexerProvider>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -196,9 +194,8 @@ namespace NuClear.VStore.Host
                                    return new InMemoryLockFactory();
                                }
 
-                               var multiplexerProvider = x.Resolve<RedLockMultiplexerProvider>();
                                var loggerFactory = x.Resolve<ILoggerFactory>();
-                               return RedLockFactory.Create(multiplexerProvider.Get(), loggerFactory);
+                               return new ReliableRedLockFactory(lockOptions, loggerFactory);
                            })
                    .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()

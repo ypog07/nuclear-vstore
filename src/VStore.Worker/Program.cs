@@ -32,7 +32,6 @@ using NuClear.VStore.Kafka;
 using NuClear.VStore.Prometheus;
 
 using RedLockNet;
-using RedLockNet.SERedis;
 
 using Serilog;
 
@@ -177,7 +176,6 @@ namespace NuClear.VStore.Worker
             builder.RegisterType<BinariesCleanupJob>().SingleInstance();
             builder.RegisterType<ObjectEventsProcessingJob>().SingleInstance();
 
-            builder.RegisterType<RedLockMultiplexerProvider>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -187,9 +185,8 @@ namespace NuClear.VStore.Worker
                                    return new InMemoryLockFactory();
                                }
 
-                               var multiplexerProvider = x.Resolve<RedLockMultiplexerProvider>();
                                var loggerFactory = x.Resolve<ILoggerFactory>();
-                               return RedLockFactory.Create(multiplexerProvider.Get(), loggerFactory);
+                               return new ReliableRedLockFactory(lockOptions, loggerFactory);
                            })
                    .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()
