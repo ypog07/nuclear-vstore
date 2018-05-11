@@ -27,7 +27,6 @@ namespace NuClear.VStore.Locks
 
         private static ILogger<ConnectionMultiplexer> _redisLogger;
 
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly ILoggerFactory _loggerFactory;
 
@@ -44,30 +43,10 @@ namespace NuClear.VStore.Locks
         }
 
         public IRedLock CreateLock(string resource, TimeSpan expiryTime)
-        {
-            try
-            {
-                _lock.EnterReadLock();
-                return _innerFactory.CreateLock(resource, expiryTime);
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
+            => _innerFactory.CreateLock(resource, expiryTime);
 
         public Task<IRedLock> CreateLockAsync(string resource, TimeSpan expiryTime)
-        {
-            try
-            {
-                _lock.EnterReadLock();
-                return _innerFactory.CreateLockAsync(resource, expiryTime);
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
+            => _innerFactory.CreateLockAsync(resource, expiryTime);
 
         public IRedLock CreateLock(
             string resource,
@@ -75,17 +54,7 @@ namespace NuClear.VStore.Locks
             TimeSpan waitTime,
             TimeSpan retryTime,
             CancellationToken? cancellationToken = null)
-        {
-            try
-            {
-                _lock.EnterReadLock();
-                return _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken);
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
+            => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken);
 
         public Task<IRedLock> CreateLockAsync(
             string resource,
@@ -93,22 +62,11 @@ namespace NuClear.VStore.Locks
             TimeSpan waitTime,
             TimeSpan retryTime,
             CancellationToken? cancellationToken = null)
-        {
-            try
-            {
-                _lock.EnterReadLock();
-                return _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken);
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
+            => _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken);
 
         public void Dispose()
         {
             _cancellationTokenSource.Cancel();
-            _lock.Dispose();
 
             foreach (var multiplexer in _multiplexers)
             {
@@ -227,37 +185,30 @@ namespace NuClear.VStore.Locks
                                     timeout = keepAlive;
                                     redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
 
-                                    _lock.EnterWriteLock();
+                                    var factory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
                                     if (_innerFactory == null)
                                     {
-                                        _innerFactory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
                                         _multiplexers = multiplexers;
+                                        _innerFactory = factory;
                                     }
                                     else
                                     {
-                                        var oldFactory = _innerFactory;
-                                        var oldMultiplexers = _multiplexers;
-                                        try
-                                        {
-                                            _innerFactory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
-                                            _multiplexers = multiplexers;
-                                        }
-                                        finally
-                                        {
-                                            foreach (var multiplexer in oldMultiplexers)
-                                            {
-                                                var endpoint = multiplexer.GetEndPoints()[0];
-                                                logger.LogTrace("Disposing connection to endpoint {endpoint}...", GetFriendlyName(endpoint));
+                                        var oldMultiplexers = Interlocked.Exchange(ref _multiplexers, multiplexers);
+                                        var oldFactory = Interlocked.Exchange(ref _innerFactory, factory);
 
-                                                multiplexer.ConnectionFailed -= OnConnectionFailed;
-                                                multiplexer.ConnectionRestored -= OnConnectionRestored;
-                                                multiplexer.InternalError -= OnInternalError;
-                                                multiplexer.ErrorMessage -= OnInternalError;
-                                                multiplexer.Dispose();
-                                            }
+                                        foreach (var multiplexer in oldMultiplexers)
+                                        {
+                                            var endpoint = multiplexer.GetEndPoints()[0];
+                                            logger.LogTrace("Disposing connection to endpoint {endpoint}...", GetFriendlyName(endpoint));
 
-                                            oldFactory.Dispose();
+                                            multiplexer.ConnectionFailed -= OnConnectionFailed;
+                                            multiplexer.ConnectionRestored -= OnConnectionRestored;
+                                            multiplexer.InternalError -= OnInternalError;
+                                            multiplexer.ErrorMessage -= OnInternalError;
+                                            multiplexer.Dispose();
                                         }
+
+                                        oldFactory.Dispose();
                                     }
 
                                     recreationNeeded = false;
@@ -265,10 +216,6 @@ namespace NuClear.VStore.Locks
                                 catch (Exception ex)
                                 {
                                     logger.LogError(ex, "Unexpected error occured while connecting to Redis servers. Will try again.");
-                                }
-                                finally
-                                {
-                                    _lock.ExitWriteLock();
                                 }
                             }
 
