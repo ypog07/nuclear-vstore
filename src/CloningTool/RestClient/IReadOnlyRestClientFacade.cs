@@ -4,14 +4,12 @@ using System.Threading.Tasks;
 
 using CloningTool.Json;
 
-using NuClear.VStore.Descriptors.Templates;
-
 namespace CloningTool.RestClient
 {
     public interface IReadOnlyRestClientFacade
     {
         Task<IReadOnlyCollection<PositionDescriptor>> GetContentPositionsAsync();
-        Task<TemplateDescriptor> GetTemplateAsync(string templateId);
+        Task<ApiTemplateDescriptor> GetTemplateAsync(string templateId);
         Task<IReadOnlyCollection<ApiListTemplate>> GetTemplatesAsync();
         Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByTemplateAsync(long templateId, int? fetchSize);
         Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByIdsAsync(IEnumerable<long> ids);

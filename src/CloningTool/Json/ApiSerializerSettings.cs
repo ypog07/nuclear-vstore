@@ -13,11 +13,13 @@ namespace CloningTool.Json
         private static readonly JsonConverter[] CustonConverters =
             {
                 new StringEnumConverter { CamelCaseText = true },
-                new ElementDescriptorJsonConverter(),
                 new ElementDescriptorCollectionJsonConverter(),
                 new ApiObjectElementDescriptorJsonConverter(),
-                new ApiObjectDescriptorJsonConverter()
+                new ApiTemplateDescriptorJsonConverter(),
+                new ApiTemplateElementDescriptorJsonConverter(),
+                new ElementDescriptorJsonConverter()
             };
+
         static ApiSerializerSettings()
         {
             Default = new JsonSerializerSettings

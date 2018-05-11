@@ -24,12 +24,12 @@ namespace NuClear.VStore.Host.Controllers
     public sealed class ObjectsController : VStoreController
     {
         private readonly IObjectsStorageReader _objectsStorageReader;
-        private readonly ObjectsManagementService _objectsManagementService;
+        private readonly IObjectsManagementService _objectsManagementService;
         private readonly ILogger<ObjectsController> _logger;
 
         public ObjectsController(
             IObjectsStorageReader objectsStorageReader,
-            ObjectsManagementService objectsManagementService,
+            IObjectsManagementService objectsManagementService,
             ILogger<ObjectsController> logger)
         {
             _logger = logger;

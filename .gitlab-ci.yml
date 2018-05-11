@@ -51,6 +51,7 @@ build:cloning-tool:
 generate:coverage:
   image: $REGISTRY/2gis/alpine:3.7-lcov
   stage: report
+  allow_failure: true
   script:
     - genhtml coverage/coverage.info --quiet --output-directory coverage_report
   dependencies:

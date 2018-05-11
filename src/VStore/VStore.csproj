@@ -7,11 +7,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta006" PrivateAssets="All" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.4" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.3.5" />
     <PackageReference Include="2GIS.ChmLibCore" Version="1.0.3" />
-    <PackageReference Include="AWSSDK.S3" Version="3.3.17.2" />
+    <PackageReference Include="AWSSDK.S3" Version="3.3.18" />
     <PackageReference Include="Confluent.Kafka" Version="0.11.3" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.7.2" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.8.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
