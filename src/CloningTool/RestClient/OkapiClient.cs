@@ -726,7 +726,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<byte[]> DownloadFileAsync(long advertisementId, Uri downloadUrl)
+        public async Task<(byte[] data, MediaTypeHeaderValue contentType)> DownloadFileAsync(long advertisementId, Uri downloadUrl)
         {
             var stringResponse = string.Empty;
             try
@@ -735,8 +735,8 @@ namespace CloningTool.RestClient
                 {
                     if (response.IsSuccessStatusCode)
                     {
-                        _logger.LogInformation("File within advertisement {amId} downloaded from {url}", advertisementId, downloadUrl);
-                        return await response.Content.ReadAsByteArrayAsync();
+                        _logger.LogInformation("File within advertisement {amId} has been downloaded from {url}", advertisementId, downloadUrl);
+                        return (await response.Content.ReadAsByteArrayAsync(), response.Content.Headers.ContentType);
                     }
 
                     (stringResponse, _, _) = await HandleResponse(response);
@@ -756,7 +756,12 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<ApiObjectElementRawValue> UploadFileAsync(long advertisementId, Uri uploadUrl, string fileName, byte[] fileData, params NameValueHeaderValue[] headers)
+        public async Task<ApiObjectElementRawValue> UploadFileAsync(long advertisementId,
+                                                                    Uri uploadUrl,
+                                                                    string fileName,
+                                                                    byte[] fileData,
+                                                                    MediaTypeHeaderValue contentType,
+                                                                    params NameValueHeaderValue[] headers)
         {
             var url = uploadUrl;
             var stringResponse = string.Empty;
@@ -773,6 +778,7 @@ namespace CloningTool.RestClient
                     {
                         using (var streamContent = new StreamContent(memoryStream))
                         {
+                            streamContent.Headers.ContentType = contentType;
                             content.Add(streamContent, fileName, fileName);
                             using (var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content })
                             {
@@ -781,16 +787,20 @@ namespace CloningTool.RestClient
                                     request.Headers.Add(header.Name, header.Value);
                                 }
 
-                                using (var response = await _authorizedHttpClient.SendAsync(request))
+                                using (var response = await _unauthorizedHttpClient.SendAsync(request))
                                 {
                                     stringResponse = (await HandleResponse(response)).ResponseContent;
                                     response.EnsureSuccessStatusCode();
-                                    _logger.LogInformation("File {fileName} within advertisement {objectId} uploaded to {url}. Headers {@params}",
+                                    var rawValue = JsonConvert.DeserializeObject<ApiObjectElementRawValue>(stringResponse, ApiSerializerSettings.Default);
+                                    _logger.LogInformation("File {fileName} with content type {contentType} within advertisement {objectId} has been uploaded to {url} and got value {rawValue}. Headers: {headers}",
                                                            fileName,
+                                                           contentType,
                                                            advertisementId,
                                                            url,
+                                                           rawValue.Raw,
                                                            headers);
-                                    return JsonConvert.DeserializeObject<ApiObjectElementRawValue>(stringResponse, ApiSerializerSettings.Default);
+
+                                    return rawValue;
                                 }
                             }
                         }
