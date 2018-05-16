@@ -22,7 +22,7 @@ namespace VStore.UnitTests.ImageRendering
             Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
         }
 
-        [Fact(Skip = "Disabled")]
+        [Fact(Skip = "Run manually")]
         public void ShouldBeAllocatedLessThan80Mb()
         {
             var rentedMemory = GetApproximateRentedMemorySize();
@@ -49,7 +49,7 @@ namespace VStore.UnitTests.ImageRendering
             }
         }
 
-        [Fact(Skip = "Disabled")]
+        [Fact(Skip = "Run manually")]
         public void ShouldBeAllocatedLessThan160Mb()
         {
             var rentedMemory = GetApproximateRentedMemorySize();
@@ -83,7 +83,7 @@ namespace VStore.UnitTests.ImageRendering
             }
         }
 
-        [Fact(Skip = "Disabled")]
+        [Fact(Skip = "Run manually")]
         public void ShouldBeAllocatedLessThan1Mb()
         {
             var rentedMemory = GetApproximateRentedMemorySize();
@@ -157,7 +157,7 @@ namespace VStore.UnitTests.ImageRendering
             Assert.InRange(after - before, 0, rentedMemory);
         }
 
-        [Fact(Skip = "Disabled")]
+        [Fact(Skip = "Run manually")]
         public void ShouldBeAllocatedLessThan80MbNested()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
@@ -219,7 +219,7 @@ namespace VStore.UnitTests.ImageRendering
             }
         }
 
-        [Fact(Skip = "Disabled")]
+        [Fact(Skip = "Run manually")]
         public void ShouldBeAllocatedLessThan154MbNested()
         {
             const int MemoryForPixels = 5000 * 3750 * 4;
