@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 using CloningTool.Json;
@@ -14,7 +15,7 @@ namespace CloningTool.RestClient
         Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByTemplateAsync(long templateId, int? fetchSize);
         Task<IReadOnlyCollection<ApiListAdvertisement>> GetAdvertisementsByIdsAsync(IEnumerable<long> ids);
         Task<ApiObjectDescriptor> GetAdvertisementAsync(long advertisementId);
-        Task<byte[]> DownloadFileAsync(long advertisementId, Uri downloadUrl);
+        Task<(byte[] data, MediaTypeHeaderValue contentType)> DownloadFileAsync(long advertisementId, Uri downloadUrl);
         Task EnsureApiAvailableAsync(int initialPingInterval, int initialPingTries);
     }
 }
