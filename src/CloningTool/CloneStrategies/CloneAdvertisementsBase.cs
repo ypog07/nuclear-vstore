@@ -306,14 +306,16 @@ namespace CloningTool.CloneStrategies
                     continue;
                 }
 
-                var fileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
+                var (fileData, contentType) = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, value.DownloadUri);
                 var matchedElement = newAdvertisement.Elements.First(e => e.TemplateCode == element.TemplateCode);
                 EnsureUploadUrlIsValid(sourceDescriptor.Id, matchedElement);
                 var uploadResponse = await DestRestClient.UploadFileAsync(
                                          sourceDescriptor.Id,
                                          new Uri(matchedElement.UploadUrl),
                                          value.Filename,
-                                         fileData);
+                                         fileData,
+                                         contentType);
+
                 Interlocked.Increment(ref _uploadedBinariesCount);
 
                 if (element.Type == ElementDescriptorType.CompositeBitmapImage)
@@ -325,7 +327,7 @@ namespace CloningTool.CloneStrategies
                             .SizeSpecificImages
                             .Select(async image =>
                                         {
-                                            var imageFileData = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, image.DownloadUri);
+                                            var (imageFileData, imageContentType) = await SourceRestClient.DownloadFileAsync(sourceDescriptor.Id, image.DownloadUri);
                                             var headers = new[]
                                                 {
                                                     new NameValueHeaderValue(HeaderNames.AmsFileType, FileType.SizeSpecificBitmapImage.ToString()),
@@ -337,7 +339,9 @@ namespace CloningTool.CloneStrategies
                                                                                 new Uri(matchedElement.UploadUrl),
                                                                                 image.Filename,
                                                                                 imageFileData,
+                                                                                imageContentType,
                                                                                 headers);
+
                                             Interlocked.Increment(ref _uploadedBinariesCount);
                                             return new SizeSpecificImage
                                                 {
