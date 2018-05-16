@@ -6,6 +6,7 @@ namespace NuClear.VStore.Options
     {
         public TimeSpan RequestTimeout { get; set; }
         public TimeSpan RetryAfter { get; set; }
-        public int MemoryLimit { get; set; }
+        public long MemoryLimit { get; set; }
+        public float ThresholdFactor { get; set; }
     }
 }
