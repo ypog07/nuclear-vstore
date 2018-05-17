@@ -114,7 +114,7 @@ namespace NuClear.VStore.Locks
                         multiplexer.ConnectionFailed += OnConnectionFailed;
                         multiplexer.ConnectionRestored += OnConnectionRestored;
                         multiplexer.InternalError += OnInternalError;
-                        multiplexer.ErrorMessage += OnInternalError;
+                        multiplexer.ErrorMessage += OnErrorMessage;
 
                         multiplexers.Add(multiplexer);
                     });
@@ -148,7 +148,7 @@ namespace NuClear.VStore.Locks
                 args.ConnectionType,
                 args.Origin);
 
-        private static void OnInternalError(object sender, RedisErrorEventArgs args)
+        private static void OnErrorMessage(object sender, RedisErrorEventArgs args)
             => _redisLogger.LogWarning("ErrorMessage: {endpoint} Message: {message}", GetFriendlyName(args.EndPoint), args.Message);
 
         private static string GetFriendlyName(EndPoint endPoint)
@@ -159,9 +159,9 @@ namespace NuClear.VStore.Locks
                     return $"{dnsEndPoint.Host}:{dnsEndPoint.Port}";
                 case IPEndPoint ipEndPoint:
                     return $"{ipEndPoint.Address}:{ipEndPoint.Port}";
+                default:
+                    return endPoint.ToString();
             }
-
-            return endPoint.ToString();
         }
 
         private void RunRedLockFactoryResilienceTask(DistributedLockOptions lockOptions)
@@ -204,7 +204,7 @@ namespace NuClear.VStore.Locks
                                             multiplexer.ConnectionFailed -= OnConnectionFailed;
                                             multiplexer.ConnectionRestored -= OnConnectionRestored;
                                             multiplexer.InternalError -= OnInternalError;
-                                            multiplexer.ErrorMessage -= OnInternalError;
+                                            multiplexer.ErrorMessage -= OnErrorMessage;
                                             multiplexer.Dispose();
                                         }
 
@@ -230,11 +230,12 @@ namespace NuClear.VStore.Locks
                                     server.Ping();
                                     logger.LogTrace("RedLock endpoint {endpoint} is available.", GetFriendlyName(endpoint));
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
                                     logger.LogWarning(
-                                        "RedLock endpoint {endpoint} is unavailable. All connections will be recreated.",
-                                        GetFriendlyName(endpoint));
+                                        "RedLock endpoint {endpoint} is unavailable. All connections will be recreated. Exception: {exception}",
+                                        GetFriendlyName(endpoint),
+                                        ex.ToString());
                                     recreationNeeded = true;
                                 }
                             }
