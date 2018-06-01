@@ -10,7 +10,6 @@ stages:
 
 before_script:
   - export APPLICATION=`make -s print-APPLICATION`
-  - source ${CI_PROJECT_DIR}/ci-starter-kit/utils.sh
   - export CI_TAG=`[[ -z ${CI_COMMIT_TAG} ]] && echo "branch-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHA:0:8}" || echo "${CI_COMMIT_TAG}"`
 
 # ================= Test & Build =================
