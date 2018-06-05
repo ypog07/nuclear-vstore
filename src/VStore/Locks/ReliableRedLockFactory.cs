@@ -11,6 +11,9 @@ using Microsoft.Extensions.Logging;
 
 using NuClear.VStore.Options;
 
+using Polly;
+using Polly.Retry;
+
 using RedLockNet;
 using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
@@ -24,34 +27,59 @@ namespace NuClear.VStore.Locks
         private const int DefaultConnectionTimeout = 1000;
         private const int DefaultSyncTimeout = 1000;
         private const int DefaultKeepAlive = 1;
+        private const int RetryCount = 3;
 
-        private static ILogger<ConnectionMultiplexer> _redisLogger;
+        private static readonly TimeSpan RetryTimeout = TimeSpan.FromMilliseconds(100);
 
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private static readonly RetryPolicy<RedLockFactory> WaitPolicy =
+            Policy.HandleResult<RedLockFactory>(factory => factory == null)
+                  .WaitAndRetryForever(attempt => RetryTimeout);
+
+        private static readonly RetryPolicy RetryPolicy =
+            Policy.Handle<Exception>(ex => !(ex is LockAlreadyExistsException))
+                  .WaitAndRetry(RetryCount, attempt => RetryTimeout);
+
+        private static readonly RetryPolicy RetryPolicyAsync =
+            Policy.Handle<Exception>(ex => !(ex is LockAlreadyExistsException))
+                  .WaitAndRetryAsync(RetryCount, attempt => RetryTimeout);
+
+        private static ILogger<ConnectionMultiplexer> _logger;
+
+        private readonly DistributedLockOptions _lockOptions;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private readonly DnsEndPoint[] _endPoints;
 
         private RedLockFactory _innerFactory;
-        private IList<IConnectionMultiplexer> _multiplexers = new List<IConnectionMultiplexer>();
+        private IConnectionMultiplexer[] _multiplexers;
 
         public ReliableRedLockFactory(DistributedLockOptions lockOptions, ILoggerFactory loggerFactory)
         {
+            _lockOptions = lockOptions;
             _loggerFactory = loggerFactory;
 
-            _redisLogger = _loggerFactory.CreateLogger<ConnectionMultiplexer>();
+            _logger = _loggerFactory.CreateLogger<ConnectionMultiplexer>();
 
-            RunRedLockFactoryResilienceTask(lockOptions);
+            _endPoints = lockOptions.GetEndPoints().Select(x => new DnsEndPoint(x.Host, x.Port)).ToArray();
+            if (_endPoints == null || !_endPoints.Any())
+            {
+                throw new ArgumentException("No endpoints specified.");
+            }
+
+            RunRedLockFactoryResilienceTask();
         }
 
         public IRedLock CreateLock(string resource, TimeSpan expiryTime)
         {
-            EnsureRedLockFactoryInitialized();
-            return _innerFactory.CreateLock(resource, expiryTime);
+            WaitPolicy.Execute(() => _innerFactory);
+            return RetryPolicy.Execute(() => new SafeRedLock(_logger, _innerFactory.CreateLock(resource, expiryTime)));
         }
 
-        public Task<IRedLock> CreateLockAsync(string resource, TimeSpan expiryTime)
+        public async Task<IRedLock> CreateLockAsync(string resource, TimeSpan expiryTime)
         {
-            EnsureRedLockFactoryInitialized();
-            return _innerFactory.CreateLockAsync(resource, expiryTime);
+            WaitPolicy.Execute(() => _innerFactory);
+            return await RetryPolicyAsync.ExecuteAsync(
+                       async () => new SafeRedLock(_logger, await _innerFactory.CreateLockAsync(resource, expiryTime)));
         }
 
         public IRedLock CreateLock(
@@ -61,19 +89,21 @@ namespace NuClear.VStore.Locks
             TimeSpan retryTime,
             CancellationToken? cancellationToken = null)
         {
-            EnsureRedLockFactoryInitialized();
-            return _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken);
+            WaitPolicy.Execute(() => _innerFactory);
+            return RetryPolicy.Execute(
+                () => new SafeRedLock(_logger, _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken)));
         }
 
-        public Task<IRedLock> CreateLockAsync(
+        public async Task<IRedLock> CreateLockAsync(
             string resource,
             TimeSpan expiryTime,
             TimeSpan waitTime,
             TimeSpan retryTime,
             CancellationToken? cancellationToken = null)
         {
-            EnsureRedLockFactoryInitialized();
-            return _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken);
+            WaitPolicy.Execute(() => _innerFactory);
+            return await RetryPolicyAsync.ExecuteAsync(
+                async () => new SafeRedLock(_logger, await _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken)));
         }
 
         public void Dispose()
@@ -88,71 +118,8 @@ namespace NuClear.VStore.Locks
             _innerFactory?.Dispose();
         }
 
-        private static async Task<(int, IList<IConnectionMultiplexer>)> Initialize(DistributedLockOptions lockOptions)
-        {
-            var endpoints = lockOptions.GetEndPoints();
-            if (endpoints == null || !endpoints.Any())
-            {
-                throw new ArgumentException("No endpoints specified.");
-            }
-
-            var multiplexers = new List<IConnectionMultiplexer>(endpoints.Count);
-            var keepAlive = lockOptions.KeepAlive ?? DefaultKeepAlive;
-            var logWriter = new LogWriter(_redisLogger);
-
-            var tasks = endpoints.Select(
-                async endpoint =>
-                    {
-                        _redisLogger.LogInformation(
-                            "{host}:{port} will be used as RedLock endpoint.",
-                            endpoint.Host,
-                            endpoint.Port);
-
-                        var redisConfig = new ConfigurationOptions
-                            {
-                                DefaultVersion = new Version(4, 0),
-                                AbortOnConnectFail = false,
-                                EndPoints = { new DnsEndPoint(endpoint.Host, endpoint.Port) },
-                                CommandMap = CommandMap.Create(new HashSet<string> { "SUBSCRIBE" }, available: false),
-                                Password = lockOptions.Password,
-                                ConnectTimeout = lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
-                                SyncTimeout = lockOptions.SyncTimeout ?? DefaultSyncTimeout,
-                                KeepAlive = keepAlive,
-                                // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
-                                ConfigCheckSeconds = keepAlive
-                            };
-
-                        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConfig, logWriter);
-                        multiplexer.ConnectionFailed += OnConnectionFailed;
-                        multiplexer.ConnectionRestored += OnConnectionRestored;
-                        multiplexer.InternalError += OnInternalError;
-                        multiplexer.ErrorMessage += OnErrorMessage;
-
-                        multiplexers.Add(multiplexer);
-                    });
-
-            await Task.WhenAll(tasks);
-
-            return (keepAlive, multiplexers);
-        }
-
-        private static void DisposeMultiplexers(ILogger logger, IEnumerable<IConnectionMultiplexer> multiplexers)
-        {
-            foreach (var multiplexer in multiplexers)
-            {
-                var endpoint = multiplexer.GetEndPoints()[0];
-                logger.LogTrace("Disposing connection to endpoint {endpoint}...", GetFriendlyName(endpoint));
-
-                multiplexer.ConnectionFailed -= OnConnectionFailed;
-                multiplexer.ConnectionRestored -= OnConnectionRestored;
-                multiplexer.InternalError -= OnInternalError;
-                multiplexer.ErrorMessage -= OnErrorMessage;
-                multiplexer.Dispose();
-            }
-        }
-
         private static void OnConnectionFailed(object sender, ConnectionFailedEventArgs args)
-            => _redisLogger.LogWarning(
+            => _logger.LogWarning(
                 args.Exception,
                 "ConnectionFailed: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
                 GetFriendlyName(args.EndPoint),
@@ -160,7 +127,7 @@ namespace NuClear.VStore.Locks
                 args.FailureType);
 
         private static void OnConnectionRestored(object sender, ConnectionFailedEventArgs args)
-            => _redisLogger.LogWarning(
+            => _logger.LogWarning(
                 args.Exception,
                 "ConnectionRestored: {endpoint} ConnectionType: {connectionType} FailureType: {failureType}",
                 GetFriendlyName(args.EndPoint),
@@ -168,7 +135,7 @@ namespace NuClear.VStore.Locks
                 args.FailureType);
 
         private static void OnInternalError(object sender, InternalErrorEventArgs args)
-            => _redisLogger.LogWarning(
+            => _logger.LogWarning(
                 args.Exception,
                 "InternalError: {endpoint} ConnectionType: {connectionType} Origin: {origin}",
                 GetFriendlyName(args.EndPoint),
@@ -176,7 +143,7 @@ namespace NuClear.VStore.Locks
                 args.Origin);
 
         private static void OnErrorMessage(object sender, RedisErrorEventArgs args)
-            => _redisLogger.LogWarning("ErrorMessage: {endpoint} Message: {message}", GetFriendlyName(args.EndPoint), args.Message);
+            => _logger.LogWarning("ErrorMessage: {endpoint} Message: {message}", GetFriendlyName(args.EndPoint), args.Message);
 
         private static string GetFriendlyName(EndPoint endPoint)
         {
@@ -191,14 +158,71 @@ namespace NuClear.VStore.Locks
             }
         }
 
-        private void RunRedLockFactoryResilienceTask(DistributedLockOptions lockOptions)
+        private static void DisposeMultiplexers(ILogger logger, IEnumerable<IConnectionMultiplexer> multiplexers)
+        {
+            foreach (var multiplexer in multiplexers)
+            {
+                var endpoint = multiplexer.GetEndPoints()[0];
+                logger.LogTrace("Disposing connection to endpoint at {endpoint}...", GetFriendlyName(endpoint));
+
+                multiplexer.ConnectionFailed -= OnConnectionFailed;
+                multiplexer.ConnectionRestored -= OnConnectionRestored;
+                multiplexer.InternalError -= OnInternalError;
+                multiplexer.ErrorMessage -= OnErrorMessage;
+                multiplexer.Dispose();
+            }
+        }
+
+        private async Task<(int, IConnectionMultiplexer[])> Initialize()
+        {
+            var multiplexers = new IConnectionMultiplexer[_endPoints.Length];
+            var keepAlive = _lockOptions.KeepAlive ?? DefaultKeepAlive;
+            var logWriter = new LogWriter(_logger);
+
+            var tasks = _endPoints.Select(
+                async (endpoint, index) =>
+                    {
+                        var redisConfig = new ConfigurationOptions
+                            {
+                                DefaultVersion = new Version(4, 0),
+                                AbortOnConnectFail = false,
+                                EndPoints = { endpoint },
+                                CommandMap = CommandMap.Create(new HashSet<string> { "SUBSCRIBE" }, available: false),
+                                Password = _lockOptions.Password,
+                                ConnectTimeout = _lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
+                                SyncTimeout = _lockOptions.SyncTimeout ?? DefaultSyncTimeout,
+                                KeepAlive = keepAlive,
+                                // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
+                                ConfigCheckSeconds = keepAlive
+                            };
+
+                        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConfig, logWriter);
+                        multiplexer.ConnectionFailed += OnConnectionFailed;
+                        multiplexer.ConnectionRestored += OnConnectionRestored;
+                        multiplexer.InternalError += OnInternalError;
+                        multiplexer.ErrorMessage += OnErrorMessage;
+
+                        multiplexers[index] = multiplexer;
+
+                        _logger.LogInformation(
+                            "Tried to connect to RedLock endpoint at {host}:{port}. Connection status: {connectionStatus}",
+                            endpoint.Host,
+                            endpoint.Port,
+                            multiplexer.IsConnected ? "active" : "disconnected");
+                    });
+
+            await Task.WhenAll(tasks);
+
+            return (keepAlive, multiplexers);
+        }
+
+        private void RunRedLockFactoryResilienceTask()
         {
             Task.Factory.StartNew(
                 async () =>
                     {
                         var logger = _loggerFactory.CreateLogger<ReliableRedLockFactory>();
                         var timeout = DefaultKeepAlive;
-                        var redLockMultiplexers = new List<RedLockMultiplexer>();
 
                         var recreationNeeded = true;
                         while (!_cancellationTokenSource.IsCancellationRequested)
@@ -207,20 +231,12 @@ namespace NuClear.VStore.Locks
                             {
                                 try
                                 {
-                                    var (keepAlive, multiplexers) = await Initialize(lockOptions);
+                                    var (keepAlive, multiplexers) = await Initialize();
                                     timeout = keepAlive;
 
-                                    if (multiplexers.Any(x => !x.IsConnected))
-                                    {
-                                        DisposeMultiplexers(logger, multiplexers);
-
-                                        await Task.Delay(TimeSpan.FromSeconds(timeout));
-                                        continue;
-                                    }
-
-                                    redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
-
+                                    var redLockMultiplexers = multiplexers.Select(x => new RedLockMultiplexer(x)).ToList();
                                     var factory = RedLockFactory.Create(redLockMultiplexers, _loggerFactory);
+
                                     if (_innerFactory == null)
                                     {
                                         _multiplexers = multiplexers;
@@ -236,18 +252,27 @@ namespace NuClear.VStore.Locks
                                         oldFactory.Dispose();
                                     }
 
+                                    var nonConnected = multiplexers.Count(x => !x.IsConnected);
+                                    logger.LogInformation(
+                                        "Successfully connected to {count} of {totalCount} RedLock endpoints. RedLock factory has been replaced with new connections.",
+                                        _multiplexers.Length - nonConnected,
+                                        _multiplexers.Length);
+
                                     recreationNeeded = false;
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.LogError(ex, "Unexpected error occured while connecting to Redis servers. Will try again.");
+                                    logger.LogError(
+                                        ex,
+                                        "Unexpected error occured while connecting to RedLock endpoints. Will try again in {timeout} seconds.",
+                                        timeout);
                                 }
                             }
 
-                            foreach (var redLockMultiplexer in redLockMultiplexers)
+                            for (var index = 0; index < _multiplexers.Length; index++)
                             {
-                                var multiplexer = redLockMultiplexer.ConnectionMultiplexer;
-                                var endpoint = multiplexer.GetEndPoints()[0];
+                                var endpoint = _endPoints[index];
+                                var multiplexer = _multiplexers[index];
                                 try
                                 {
                                     logger.LogTrace("Checking RedLock endpoint {endpoint} for availablity.", GetFriendlyName(endpoint));
@@ -257,7 +282,7 @@ namespace NuClear.VStore.Locks
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.LogWarning(
+                                    logger.LogDebug(
                                         "RedLock endpoint {endpoint} is unavailable. All connections will be recreated. Exception: {exception}",
                                         GetFriendlyName(endpoint),
                                         ex.ToString());
@@ -271,14 +296,6 @@ namespace NuClear.VStore.Locks
                 _cancellationTokenSource.Token,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
-        }
-
-        private void EnsureRedLockFactoryInitialized()
-        {
-            if (_innerFactory == null)
-            {
-                throw new InitializationFailedException();
-            }
         }
 
         private class LogWriter : TextWriter
