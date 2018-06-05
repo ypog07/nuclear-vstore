@@ -72,14 +72,17 @@ namespace NuClear.VStore.Locks
         public IRedLock CreateLock(string resource, TimeSpan expiryTime)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            return RetryPolicy.Execute(() => new SafeRedLock(_logger, _innerFactory.CreateLock(resource, expiryTime)));
+            var redLock = RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime));
+
+            return new SafeRedLock(_logger, redLock);
         }
 
         public async Task<IRedLock> CreateLockAsync(string resource, TimeSpan expiryTime)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            return await RetryPolicyAsync.ExecuteAsync(
-                       async () => new SafeRedLock(_logger, await _innerFactory.CreateLockAsync(resource, expiryTime)));
+            var redLock = await RetryPolicyAsync.ExecuteAsync(() => _innerFactory.CreateLockAsync(resource, expiryTime));
+
+            return new SafeRedLock(_logger, redLock);
         }
 
         public IRedLock CreateLock(
@@ -90,8 +93,9 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            return RetryPolicy.Execute(
-                () => new SafeRedLock(_logger, _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken)));
+            var redLock =  RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken));
+
+            return new SafeRedLock(_logger, redLock);
         }
 
         public async Task<IRedLock> CreateLockAsync(
@@ -102,8 +106,9 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            return await RetryPolicyAsync.ExecuteAsync(
-                async () => new SafeRedLock(_logger, await _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken)));
+            var redLock = await RetryPolicyAsync.ExecuteAsync(() =>  _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken));
+
+            return new SafeRedLock(_logger, redLock);
         }
 
         public void Dispose()
