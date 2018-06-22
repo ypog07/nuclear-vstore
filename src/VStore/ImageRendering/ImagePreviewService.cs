@@ -109,7 +109,7 @@ namespace NuClear.VStore.ImageRendering
                     sourceStream.Position = 0;
                     image = Image.Load(sourceStream, out imageFormat);
                 }
-                catch
+                catch (Exception)
                 {
                     throw new InvalidBinaryException(templateCode, new InvalidImageError());
                 }
