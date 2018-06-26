@@ -6,12 +6,13 @@ WORKDIR /librdkafka
 RUN apk add --update \
         bash \
         git \
-		make \
-		gcc \
-		g++
+        make \
+        gcc \
+        g++
 
 # Build librdkafka from source
 RUN git clone https://github.com/edenhill/librdkafka.git . \
     && git checkout v0.11.4 \
-	&& ./configure \
-	&& make
+    && ./configure \
+    && make \
+    && make install

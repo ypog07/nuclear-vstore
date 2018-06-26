@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,9 +22,8 @@ namespace NuClear.VStore.Kafka
 
         public EventSender(KafkaOptions kafkaOptions, ILogger<EventSender> logger)
         {
-            var path = Path.GetFullPath("librdkafka-alpine3.7.so");
-            logger.LogInformation("Loading path: {path}", path);
-            Library.Load(path);
+            logger.LogInformation("Loading librdkafka from {path}...", kafkaOptions.PathToLibRdKafka);
+            Library.Load(kafkaOptions.PathToLibRdKafka);
 
             _logger = logger;
 
@@ -39,7 +37,7 @@ namespace NuClear.VStore.Kafka
                     { "batch.num.messages", kafkaOptions.Producer.BatchNumMessages },
                     { "message.max.bytes", kafkaOptions.Producer.MessageMaxBytes },
 #if DEBUG
-                    { "debug", "msg" },
+                    { "debug", "broker,topic,msg" },
                     { "socket.blocking.max.ms", 1 }, // https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency
 #else
                     { "log.connection.close", false },

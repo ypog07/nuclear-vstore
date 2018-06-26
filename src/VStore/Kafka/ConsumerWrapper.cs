@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 using Confluent.Kafka;
@@ -18,9 +17,8 @@ namespace NuClear.VStore.Kafka
 
         protected ConsumerWrapper(ILogger logger, KafkaOptions kafkaOptions, string groupId = null)
         {
-            var path = Path.GetFullPath("librdkafka-alpine3.7.so");
-            logger.LogInformation("Loading path: {path}", path);
-            Library.Load(path);
+            logger.LogInformation("Loading librdkafka from {path}...", kafkaOptions.PathToLibRdKafka);
+            Library.Load(kafkaOptions.PathToLibRdKafka);
 
             _logger = logger;
             Consumer = new Consumer<string, string>(
@@ -58,7 +56,7 @@ namespace NuClear.VStore.Kafka
                     { "fetch.message.max.bytes", kafkaOptions.Consumer.FetchMessageMaxBytes },
                     { "queued.min.messages", kafkaOptions.Consumer.QueuedMinMessages },
 #if DEBUG
-                    { "debug", "msg" },
+                    { "debug", "consumer,cgrp,topic,fetch" },
                     { "socket.blocking.max.ms", 1 }, // https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency
 #else
                     { "log.connection.close", false },

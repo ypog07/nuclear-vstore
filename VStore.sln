@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{C8C4BA38
 		build\build.sh = build\build.sh
 		config-standalone.yaml = config-standalone.yaml
 		build\docker-compose-build.yml = build\docker-compose-build.yml
+		build\Dockerfile.librdkafka-alpine = build\Dockerfile.librdkafka-alpine
 		readme.md = readme.md
 	EndProjectSection
 EndProject
