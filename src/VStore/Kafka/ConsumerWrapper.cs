@@ -17,6 +17,8 @@ namespace NuClear.VStore.Kafka
 
         protected ConsumerWrapper(ILogger logger, KafkaOptions kafkaOptions, string groupId = null)
         {
+            Library.Load("librdkafka-alpine3.7.so");
+
             _logger = logger;
             Consumer = new Consumer<string, string>(
                 CreateConsumerConfig(kafkaOptions, groupId),

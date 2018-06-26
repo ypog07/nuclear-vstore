@@ -22,6 +22,8 @@ namespace NuClear.VStore.Kafka
 
         public EventSender(KafkaOptions kafkaOptions, ILogger<EventSender> logger)
         {
+            Library.Load("librdkafka-alpine3.7.so");
+
             _logger = logger;
 
             var producerConfig = new Dictionary<string, object>
