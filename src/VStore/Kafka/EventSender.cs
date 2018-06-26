@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,7 +23,9 @@ namespace NuClear.VStore.Kafka
 
         public EventSender(KafkaOptions kafkaOptions, ILogger<EventSender> logger)
         {
-            Library.Load("librdkafka-alpine3.7.so");
+            var path = Path.GetFullPath("librdkafka-alpine3.7.so");
+            logger.LogInformation("Loading path: {path}", path);
+            Library.Load(path);
 
             _logger = logger;
 

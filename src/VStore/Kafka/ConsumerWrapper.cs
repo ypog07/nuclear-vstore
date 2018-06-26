@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 using Confluent.Kafka;
@@ -17,7 +18,9 @@ namespace NuClear.VStore.Kafka
 
         protected ConsumerWrapper(ILogger logger, KafkaOptions kafkaOptions, string groupId = null)
         {
-            Library.Load("librdkafka-alpine3.7.so");
+            var path = Path.GetFullPath("librdkafka-alpine3.7.so");
+            logger.LogInformation("Loading path: {path}", path);
+            Library.Load(path);
 
             _logger = logger;
             Consumer = new Consumer<string, string>(
