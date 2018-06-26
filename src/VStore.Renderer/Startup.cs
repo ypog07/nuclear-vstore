@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 
 using Amazon.Runtime;
@@ -29,9 +28,7 @@ using NuClear.VStore.Options;
 using NuClear.VStore.Prometheus;
 using NuClear.VStore.S3;
 using NuClear.VStore.Templates;
-
-using Prometheus.Client.Collectors;
-using Prometheus.Client.Owin;
+using Prometheus;
 
 using RedLockNet;
 
@@ -61,6 +58,7 @@ namespace NuClear.VStore.Renderer
                 .Configure<ThrottlingOptions>(_configuration.GetSection("Throttling"));
 
             services.AddMvcCore()
+                    .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
                     .AddVersionedApiExplorer()
                     .AddApiExplorer()
                     .AddCors()
@@ -212,16 +210,7 @@ namespace NuClear.VStore.Renderer
                                 }
                     });
             app.UseMiddleware<HealthCheckMiddleware>();
-            app.UsePrometheusServer(
-                new PrometheusOptions
-                    {
-                        Collectors = new List<IOnDemandCollector>
-                            {
-                                new DotNetStatsCollector(),
-                                new DotNetMemoryStatsCollector(),
-                                new WindowsDotNetStatsCollector()
-                            }
-                    });
+            app.UseMetricServer();
             app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
 

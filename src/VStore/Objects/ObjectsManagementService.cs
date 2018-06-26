@@ -29,8 +29,7 @@ using NuClear.VStore.Prometheus;
 using NuClear.VStore.S3;
 using NuClear.VStore.Sessions;
 using NuClear.VStore.Templates;
-
-using Prometheus.Client;
+using Prometheus;
 
 namespace NuClear.VStore.Objects
 {

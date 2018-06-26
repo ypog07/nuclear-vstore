@@ -43,8 +43,8 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="continuationToken">Token to continue reading list, should be empty on initial call</param>
         /// <returns>List of object descriptors</returns>
         [HttpGet]
-        [ProducesResponseType(typeof(IReadOnlyCollection<IdentifyableObjectRecord<long>>), 200)]
-        public async Task<IActionResult> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
+        [ProducesResponseType(200)]
+        public async Task<ActionResult<IReadOnlyCollection<IdentifyableObjectRecord<long>>>> List([FromHeader(Name = Http.HeaderNames.AmsContinuationToken)]string continuationToken)
         {
             var container = await _objectsStorageReader.List(continuationToken?.Trim('"'));
 
@@ -62,8 +62,8 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="ids">Object identifiers</param>
         /// <returns>List of object descriptors</returns>
         [HttpGet("specified")]
-        [ProducesResponseType(typeof(IReadOnlyCollection<ObjectMetadataRecord>), 200)]
-        public async Task<IActionResult> List(IReadOnlyCollection<long> ids)
+        [ProducesResponseType(200)]
+        public async Task<ActionResult<IReadOnlyCollection<ObjectMetadataRecord>>> List(IReadOnlyCollection<long> ids)
         {
             var records = await _objectsStorageReader.GetObjectMetadatas(ids);
             return Json(records);
@@ -77,9 +77,9 @@ namespace NuClear.VStore.Host.Controllers
         /// <returns>Template descriptor</returns>
         [HttpGet("{id:long}/{versionId}/template")]
         [ResponseCache(Duration = 120)]
-        [ProducesResponseType(typeof(IVersionedTemplateDescriptor), 200)]
+        [ProducesResponseType(200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetTemplateDescriptor(long id, string versionId)
+        public async Task<ActionResult<IVersionedTemplateDescriptor>> GetTemplateDescriptor(long id, string versionId)
         {
             try
             {
@@ -101,10 +101,10 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="id">Object identifier</param>
         /// <returns>List of object versions</returns>
         [HttpGet("{id:long}/versions")]
-        [ProducesResponseType(typeof(IReadOnlyCollection<ObjectVersionRecord>), 200)]
+        [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(503)]
-        public async Task<IActionResult> GetVersions(long id)
+        public async Task<ActionResult<IReadOnlyCollection<ObjectVersionRecord>>> GetVersions(long id)
         {
             try
             {

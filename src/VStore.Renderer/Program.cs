@@ -13,10 +13,10 @@ namespace NuClear.VStore.Renderer
     {
         public static void Main(string[] args)
         {
-            BuildWebHost(args).Run();
+            CreateWebHostBuilder(args).Build().Run();
         }
 
-        public static IWebHost BuildWebHost(string[] args) =>
+        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                    .ConfigureServices(services => services.AddAutofac())
                    .ConfigureAppConfiguration((hostingContext, config) =>
@@ -25,7 +25,6 @@ namespace NuClear.VStore.Renderer
                                                       config.UseDefaultConfiguration(env.ContentRootPath, env.EnvironmentName);
                                                   })
                    .UseStartup<Startup>()
-                   .UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration))
-                   .Build();
+                   .UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration));
     }
 }

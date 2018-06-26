@@ -34,6 +34,7 @@ using NuClear.VStore.Prometheus;
 using RedLockNet;
 
 using Serilog;
+using Prometheus;
 
 namespace NuClear.VStore.Worker
 {

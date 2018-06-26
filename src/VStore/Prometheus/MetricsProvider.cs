@@ -1,4 +1,4 @@
-using Prometheus.Client;
+using Prometheus;
 
 namespace NuClear.VStore.Prometheus
 {

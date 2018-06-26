@@ -15,12 +15,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -44,9 +44,7 @@ using NuClear.VStore.Prometheus;
 using NuClear.VStore.S3;
 using NuClear.VStore.Sessions;
 using NuClear.VStore.Templates;
-
-using Prometheus.Client.Collectors;
-using Prometheus.Client.Owin;
+using Prometheus;
 
 using RedLockNet;
 
@@ -101,6 +99,7 @@ namespace NuClear.VStore.Host
                                     .Build();
                                 options.Filters.Add(new AuthorizeFilter(policy));
                             })
+                    .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
                     .AddVersionedApiExplorer()
                     .AddApiExplorer()
                     .AddAuthorization()
@@ -317,11 +316,7 @@ namespace NuClear.VStore.Host
                                 }
                     });
             app.UseMiddleware<HealthCheckMiddleware>();
-            app.UsePrometheusServer(
-                new PrometheusOptions
-                    {
-                        Collectors = new List<IOnDemandCollector> { new DotNetStatsCollector(), new WindowsDotNetStatsCollector() }
-                    });
+            app.UseMetricServer();
             app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
 
