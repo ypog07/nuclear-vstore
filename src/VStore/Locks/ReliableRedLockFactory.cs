@@ -282,12 +282,12 @@ namespace NuClear.VStore.Locks
                                 {
                                     logger.LogTrace("Checking RedLock endpoint {endpoint} for availablity.", GetFriendlyName(endpoint));
                                     var server = multiplexer.GetServer(endpoint);
-                                    server.Ping();
-                                    logger.LogTrace("RedLock endpoint {endpoint} is available.", GetFriendlyName(endpoint));
+                                    var latency = server.Ping();
+                                    logger.LogTrace("RedLock endpoint {endpoint} is available. Latency: {latency}", GetFriendlyName(endpoint), latency);
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.LogDebug(
+                                    logger.LogWarning(
                                         "RedLock endpoint {endpoint} is unavailable. All connections will be recreated. Exception: {exception}",
                                         GetFriendlyName(endpoint),
                                         ex.ToString());
