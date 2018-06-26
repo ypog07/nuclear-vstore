@@ -165,10 +165,8 @@ deploy:relizard:review:
   dependencies: []
   tags: [ io, docker-engine ]
 
-# ================= End =================
-
 destroy:relizard:stop-review:
-  stage: end
+  stage: deploy
   when: manual
   variables:
     GIT_STRATEGY: none
@@ -181,6 +179,8 @@ destroy:relizard:stop-review:
     - curl -s -X DELETE http://relizard-gecko.web-staging.2gis.ru/envs/env/${CI_COMMIT_REF_SLUG}
   dependencies: []
   tags: [ io, docker-engine ]
+
+# ================= End =================
 
 cleanup:registry:
   stage: end
