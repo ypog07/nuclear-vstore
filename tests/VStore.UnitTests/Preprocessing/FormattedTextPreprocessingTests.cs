@@ -61,6 +61,12 @@ namespace VStore.UnitTests.Preprocessing
         }
 
         [Fact]
+        public void TestSpaceAfterTag()
+        {
+            Assert.Equal("<strong>foo,</strong> bar", ElementTextHarmonizer.ProcessFormatted("<strong>foo,</strong> bar"));
+        }
+
+        [Fact]
         public void TestOnAllConditions()
         {
             Assert.Equal("<b> </b>" + ((char)160).ToString() + "<ul>   </ul>",
