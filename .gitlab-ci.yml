@@ -81,8 +81,6 @@ build:vstore-worker-image:
   stage: dockerize
   when: manual
   allow_failure: false
-  variables:
-    GIT_STRATEGY: none
   script:
     - export IMAGE_TAG=$REGISTRY/ams/vstore-worker:${CI_TAG}
     - docker build --pull --rm --tag $IMAGE_TAG -f publish/vstore-worker/Dockerfile publish/vstore-worker
