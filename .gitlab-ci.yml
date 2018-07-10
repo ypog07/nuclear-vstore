@@ -23,6 +23,8 @@ build:app:
     - dotnet publish src/VStore.Host --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore
     - dotnet publish src/VStore.Worker --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore-worker
     - dotnet publish src/VStore.Renderer --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore-renderer
+    - cp lib/librdkafka.so publish/vstore
+    - cp lib/librdkafka.so publish/vstore-worker
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_app"
@@ -65,6 +67,8 @@ build:vstore-host-image:
   stage: dockerize
   when: manual
   allow_failure: false
+  variables:
+    GIT_STRATEGY: none
   script:
     - export IMAGE_TAG=$REGISTRY/ams/vstore:${CI_TAG}
     - docker build --pull --rm --tag $IMAGE_TAG -f publish/vstore/Dockerfile publish/vstore
@@ -77,6 +81,8 @@ build:vstore-worker-image:
   stage: dockerize
   when: manual
   allow_failure: false
+  variables:
+    GIT_STRATEGY: none
   script:
     - export IMAGE_TAG=$REGISTRY/ams/vstore-worker:${CI_TAG}
     - docker build --pull --rm --tag $IMAGE_TAG -f publish/vstore-worker/Dockerfile publish/vstore-worker
@@ -89,6 +95,8 @@ build:vstore-renderer-image:
   stage: dockerize
   when: manual
   allow_failure: false
+  variables:
+    GIT_STRATEGY: none
   script:
     - export IMAGE_TAG=$REGISTRY/ams/vstore-renderer:${CI_TAG}
     - docker build --pull --rm --tag $IMAGE_TAG -f publish/vstore-renderer/Dockerfile publish/vstore-renderer
@@ -100,6 +108,8 @@ build:vstore-renderer-image:
 build:cloning-tool-image:
   stage: dockerize
   when: manual
+  variables:
+    GIT_STRATEGY: none
   script:
     - export IMAGE_TAG=$REGISTRY/ams/cloning-tool:${CI_TAG}
     - docker build --pull --rm --tag $IMAGE_TAG -f publish/cloning-tool/Dockerfile publish/cloning-tool

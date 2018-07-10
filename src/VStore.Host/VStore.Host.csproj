@@ -26,7 +26,7 @@
     <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\lib\librdkafka-alpine3.7.so" Link="librdkafka-alpine3.7.so">
+    <None Include="..\..\lib\librdkafka.so" Link="librdkafka.so">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
   </ItemGroup>
