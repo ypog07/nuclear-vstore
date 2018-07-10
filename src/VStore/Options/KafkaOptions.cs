@@ -10,7 +10,6 @@
         public string BinariesReferencesTopic { get; set; }
         public ConsumerOptions Consumer { get; set; }
         public ProducerOptions Producer { get; set; }
-        public string PathToLibRdKafka { get; set; } = "librdkafka-alpine3.7.so";
 
         public sealed class ConsumerOptions
         {

@@ -22,9 +22,6 @@ namespace NuClear.VStore.Kafka
 
         public EventSender(KafkaOptions kafkaOptions, ILogger<EventSender> logger)
         {
-            logger.LogInformation("Loading librdkafka from {path}...", kafkaOptions.PathToLibRdKafka);
-            Library.Load(kafkaOptions.PathToLibRdKafka);
-
             _logger = logger;
 
             var producerConfig = new Dictionary<string, object>

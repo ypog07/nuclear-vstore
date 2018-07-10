@@ -17,9 +17,6 @@ namespace NuClear.VStore.Kafka
 
         protected ConsumerWrapper(ILogger logger, KafkaOptions kafkaOptions, string groupId = null)
         {
-            logger.LogInformation("Loading librdkafka from {path}...", kafkaOptions.PathToLibRdKafka);
-            Library.Load(kafkaOptions.PathToLibRdKafka);
-
             _logger = logger;
             Consumer = new Consumer<string, string>(
                 CreateConsumerConfig(kafkaOptions, groupId),
