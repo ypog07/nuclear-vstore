@@ -200,7 +200,7 @@ namespace NuClear.VStore.Renderer
                             }
                     });
             app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
-            if (!env.IsProduction())
+            if (!_environment.IsProduction())
             {
                 app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
             }
