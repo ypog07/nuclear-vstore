@@ -16,9 +16,9 @@ namespace CloningTool.CloneStrategies
     public class ReloadFiles : ICloneStrategy
     {
         private const string IdentifiersFilename = "ids.txt";
-        private readonly ILogger<CloneAdvertisementsBase> _logger;
+        private readonly ILogger<ReloadFiles> _logger;
 
-        protected ReloadFiles(IRestClientFacade destRestClient, ILogger<CloneAdvertisementsBase> logger)
+        public ReloadFiles(IRestClientFacade destRestClient, ILogger<ReloadFiles> logger)
         {
             _logger = logger;
             DestRestClient = destRestClient;
@@ -72,7 +72,7 @@ namespace CloningTool.CloneStrategies
                                 continue;
                             }
 
-                            var file = await DestRestClient.DownloadFileAsync(id, value.DownloadUri);
+                            var (file, contentType) = await DestRestClient.DownloadFileAsync(id, value.DownloadUri);
                             var name = id.ToString() + "_" + bitmapElement.TemplateCode.ToString() + "_" + Path.GetFileNameWithoutExtension(value.Filename);
                             var fileName = Path.Combine(downloadPath, Path.ChangeExtension(name, Path.GetExtension(value.Raw)));
                             using (var stream = File.Create(fileName))
@@ -94,7 +94,7 @@ namespace CloningTool.CloneStrategies
                                 await replacementFile.ReadAsync(data, 0, (int)replacementFile.Length);
                             }
 
-                            var newValue = await DestRestClient.UploadFileAsync(id, new Uri(bitmapElement.UploadUrl), value.Filename, data);
+                            var newValue = await DestRestClient.UploadFileAsync(id, new Uri(bitmapElement.UploadUrl), value.Filename, data, contentType);
                             bitmapElement.Value = newValue;
                             isChanged = true;
                             _logger.LogInformation("Bitmap within advertisement {id} has been replaced with file {name} (was {oldRaw})", id, uploadedFileName, value.Raw);

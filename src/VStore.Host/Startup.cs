@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net;
+using System.IO;
 using System.Text;
 
 using Amazon.Runtime;
@@ -31,7 +31,6 @@ using Newtonsoft.Json.Serialization;
 
 using NuClear.VStore.Host.Options;
 using NuClear.VStore.Http;
-using NuClear.VStore.Http.Core.Filters;
 using NuClear.VStore.Http.Core.Json;
 using NuClear.VStore.Http.Core.Middleware;
 using NuClear.VStore.Http.Core.Routing;
@@ -50,8 +49,6 @@ using Prometheus.Client.Collectors;
 using Prometheus.Client.Owin;
 
 using RedLockNet;
-using RedLockNet.SERedis;
-using RedLockNet.SERedis.Configuration;
 
 using Swashbuckle.AspNetCore.Swagger;
 
@@ -174,6 +171,7 @@ namespace NuClear.VStore.Host
 
                         options.OperationFilter<ImplicitApiVersionParameter>();
                         options.OperationFilter<UploadFileOperationFilter>();
+                        options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(VStore)}.{nameof(Host)}.xml"));
                     });
         }
 
@@ -187,6 +185,7 @@ namespace NuClear.VStore.Host
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
+            builder.RegisterType<ReliableRedLockFactory>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -196,24 +195,9 @@ namespace NuClear.VStore.Host
                                    return new InMemoryLockFactory();
                                }
 
-                               var loggerFactory = x.Resolve<ILoggerFactory>();
-                               var logger = loggerFactory.CreateLogger<Startup>();
-
-                               var endpoints = lockOptions.GetEndPoints();
-                               var redLockEndPoints = new List<RedLockEndPoint>();
-                               foreach (var endpoint in endpoints)
-                               {
-                                   redLockEndPoints.Add(new RedLockEndPoint(new DnsEndPoint(endpoint.IpAddress, endpoint.Port)) { Password = lockOptions.Password });
-                                   logger.LogInformation(
-                                       "{host}:{port} ({ipAddress}:{port}) will be used as RedLock endpoint.",
-                                       endpoint.Host,
-                                       endpoint.Port,
-                                       endpoint.IpAddress,
-                                       endpoint.Port);
-                               }
-
-                               return RedLockFactory.Create(redLockEndPoints, loggerFactory);
+                               return x.Resolve<ReliableRedLockFactory>();
                            })
+                   .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()
                    .SingleInstance();
             builder.Register(
@@ -293,11 +277,14 @@ namespace NuClear.VStore.Host
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
                    .As<IObjectsStorageReader>()
+                   .PreserveExistingDefaults()
                    .SingleInstance();
             builder.RegisterType<ObjectsManagementService>()
                    .WithParameter(
                        (parameterInfo, context) => parameterInfo.ParameterType == typeof(IS3Client),
                        (parameterInfo, context) => context.Resolve<ICephS3Client>())
+                   .As<IObjectsManagementService>()
+                   .PreserveExistingDefaults()
                    .SingleInstance();
             builder.RegisterType<EventSender>().As<IEventSender>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();

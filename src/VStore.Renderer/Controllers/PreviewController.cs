@@ -38,6 +38,15 @@ namespace NuClear.VStore.Renderer.Controllers
             _imagePreviewService = imagePreviewService;
         }
 
+        /// <summary>
+        /// Get composite image preview
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <param name="templateCode">Template code of object's element</param>
+        /// <param name="width">Required width</param>
+        /// <param name="height">Required height</param>
+        /// <returns>File with preview</returns>
         [MapToApiVersion("2.0")]
         [HttpGet("{id:long}/{versionId}/{templateCode:int}/image_{width:int}x{height:int}.png")]
         [ProducesResponseType(typeof(byte[]), 200)]
@@ -86,6 +95,15 @@ namespace NuClear.VStore.Renderer.Controllers
             }
         }
 
+        /// <summary>
+        /// Get composite image preview with rounded corners (old API)
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <param name="templateCode">Template code of object's element</param>
+        /// <param name="width">Required width</param>
+        /// <param name="height">Required height</param>
+        /// <returns>File with preview</returns>
         [Obsolete, MapToApiVersion("1.0")]
         [HttpGet("{id:long}/{versionId}/{templateCode:int}/image_{width:int}x{height:int}.png")]
         [ProducesResponseType(typeof(byte[]), 200)]
@@ -134,6 +152,15 @@ namespace NuClear.VStore.Renderer.Controllers
             }
         }
 
+        /// <summary>
+        /// Get slalable image preview
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <param name="templateCode">Template code of object's element</param>
+        /// <param name="width">Required width</param>
+        /// <param name="height">Required height</param>
+        /// <returns>File with preview</returns>
         [HttpGet("{id:long}/{versionId}/{templateCode:int}/{width:int}x{height:int}")]
         [ProducesResponseType(typeof(byte[]), 200)]
         [ProducesResponseType(typeof(string), 400)]

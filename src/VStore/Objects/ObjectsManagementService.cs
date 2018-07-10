@@ -34,7 +34,7 @@ using Prometheus.Client;
 
 namespace NuClear.VStore.Objects
 {
-    public sealed class ObjectsManagementService
+    public sealed class ObjectsManagementService : IObjectsManagementService
     {
         private readonly IS3Client _s3Client;
         private readonly ITemplatesStorageReader _templatesStorageReader;

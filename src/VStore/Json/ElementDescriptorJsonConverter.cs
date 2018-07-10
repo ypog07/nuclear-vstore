@@ -11,6 +11,8 @@ namespace NuClear.VStore.Json
 {
     public sealed class ElementDescriptorJsonConverter : JsonConverter
     {
+        public override bool CanConvert(Type objectType) => objectType == typeof(IElementDescriptor);
+
         public override bool CanWrite => false;
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
@@ -18,21 +20,21 @@ namespace NuClear.VStore.Json
             throw new NotSupportedException();
         }
 
-        public override bool CanConvert(Type objectType) => objectType == typeof(IElementDescriptor);
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) =>
+            ReadJson(reader, objectType, existingValue, serializer, out _);
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public IElementDescriptor ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer, out JObject loadedObject)
         {
-            JObject obj;
             try
             {
-                obj = JObject.Load(reader);
+                loadedObject = JObject.Load(reader);
             }
             catch (JsonReaderException ex)
             {
                 throw new JsonSerializationException("Template element descriptor is not a valid JSON", ex);
             }
 
-            var typeToken = obj[Tokens.TypeToken];
+            var typeToken = loadedObject[Tokens.TypeToken];
             if (typeToken == null)
             {
                 throw new JsonSerializationException($"Some template element doesn't contain '{Tokens.TypeToken}' property.");
@@ -45,7 +47,7 @@ namespace NuClear.VStore.Json
                 throw new JsonSerializationException($"Some template element has incorrect type '{type}'.");
             }
 
-            return DeserializeElementDescriptor(obj, descriptorType);
+            return DeserializeElementDescriptor(loadedObject, descriptorType);
         }
 
         private static IElementDescriptor DeserializeElementDescriptor(JToken token, ElementDescriptorType descriptorType)
