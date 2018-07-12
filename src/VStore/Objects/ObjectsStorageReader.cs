@@ -294,6 +294,7 @@ namespace NuClear.VStore.Objects
             return listResponse.S3Objects.Count != 0;
         }
 
+        /// <inheritdoc/>
         public async Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode)
         {
             var objectDescriptor = await GetObjectDescriptor(id, versionId, CancellationToken.None);
@@ -305,9 +306,8 @@ namespace NuClear.VStore.Objects
 
             if (!(element.Value is IImageElementValue elementValue))
             {
-                throw new ArgumentException(
-                    $"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' is not an image.",
-                    nameof(templateCode));
+                throw new ObjectElementInvalidTypeException(
+                    $"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' is not an image.");
             }
 
             return elementValue;

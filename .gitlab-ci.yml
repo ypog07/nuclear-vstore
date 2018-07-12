@@ -142,7 +142,7 @@ deploy:relizard:review:
     GIT_STRATEGY: none
   environment:
     name: review/${CI_COMMIT_REF_SLUG}
-    url: http://vstore-${CI_COMMIT_REF_SLUG}.web-staging.2gis.ru/swagger
+    url: http://vstore-env-${CI_COMMIT_REF_SLUG}.web-staging.2gis.ru/swagger
     on_stop: destroy:relizard:stop-review
   only:
     - branches
@@ -163,10 +163,8 @@ deploy:relizard:review:
   dependencies: []
   tags: [ io, docker-engine ]
 
-# ================= End =================
-
 destroy:relizard:stop-review:
-  stage: end
+  stage: deploy
   when: manual
   variables:
     GIT_STRATEGY: none
@@ -175,10 +173,14 @@ destroy:relizard:stop-review:
     action: stop
   only:
     - branches
+  except:
+    - master
   script:
     - curl -s -X DELETE http://relizard-gecko.web-staging.2gis.ru/envs/env/${CI_COMMIT_REF_SLUG}
   dependencies: []
   tags: [ io, docker-engine ]
+
+# ================= End =================
 
 cleanup:registry:
   stage: end

@@ -93,7 +93,7 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            var redLock =  RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken));
+            var redLock = RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken));
 
             return new SafeRedLock(_logger, redLock);
         }
@@ -106,7 +106,7 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            var redLock = await RetryPolicyAsync.ExecuteAsync(() =>  _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken));
+            var redLock = await RetryPolicyAsync.ExecuteAsync(() => _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken));
 
             return new SafeRedLock(_logger, redLock);
         }
