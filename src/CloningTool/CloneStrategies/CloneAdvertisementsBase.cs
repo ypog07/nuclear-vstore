@@ -29,6 +29,7 @@ namespace CloningTool.CloneStrategies
         private readonly bool _isTruncatedCloning;
 
         private long _uploadedBinariesCount;
+        private long _createdAdsCount;
         private long _selectedToWhitelistCount;
         private long _rejectedCount;
         private long _approvedCount;
@@ -121,6 +122,7 @@ namespace CloningTool.CloneStrategies
                                                 });
 
             _logger.LogInformation("Total cloned advertisements: {cloned} of {total}", clonedCount, advertisements.Count);
+            _logger.LogInformation("Total created advertisements: {created}", _createdAdsCount);
             _logger.LogInformation("Total uploaded binaries: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist: {selectedToWhitelistCount}", _selectedToWhitelistCount);
             _logger.LogInformation("Total moderated advertisements: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
@@ -206,6 +208,7 @@ namespace CloningTool.CloneStrategies
                                                 });
 
             _logger.LogInformation("Failed advertisements repeated cloning done, cloned: {cloned} of {total}", clonedCount, failedAds.Count);
+            _logger.LogInformation("Total created advertisements during repeated cloning: {created}", _createdAdsCount);
             _logger.LogInformation("Total uploaded binaries during repeated cloning: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist during repeated cloning: {selectedToWhitelistCount}", _selectedToWhitelistCount);
             _logger.LogInformation("Total moderated advertisements during repeated cloning: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
@@ -248,6 +251,7 @@ namespace CloningTool.CloneStrategies
                 {
                     sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                     versionId = await DestRestClient.CreateAdvertisementAsync(advertisement.Id, advertisement.Firm.Id, sourceDescriptor);
+                    Interlocked.Increment(ref _createdAdsCount);
                 }
                 catch (ObjectAlreadyExistsException ex)
                 {
@@ -403,6 +407,7 @@ namespace CloningTool.CloneStrategies
 
         private void ResetCounters()
         {
+            _createdAdsCount = 0L;
             _uploadedBinariesCount = 0L;
             _approvedCount = 0L;
             _draftedCount = 0L;

@@ -8,8 +8,6 @@ namespace CloningTool
 
         public bool FetchAdvertisementBeforeClone { get; set; }
 
-        public bool OverwriteUnequalTemplates { get; set; } = false;
-
         public int MaxDegreeOfParallelism { get; set; }
 
         public int MaxCloneTries { get; set; } = 3;

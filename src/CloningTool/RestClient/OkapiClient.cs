@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 
+using NuClear.VStore.DataContract;
 using NuClear.VStore.Http;
 using NuClear.VStore.Objects;
 
@@ -122,7 +123,7 @@ namespace CloningTool.RestClient
                     }
 
                     response.EnsureSuccessStatusCode();
-                    var res = JsonConvert.DeserializeObject<IReadOnlyList<ApiObjectDescriptor>>(stringResponse, ApiSerializerSettings.Default);
+                    var res = JsonConvert.DeserializeObject<IReadOnlyCollection<ApiObjectDescriptor>>(stringResponse, ApiSerializerSettings.Default);
                     if (res == null)
                     {
                         throw new SerializationException("Cannot deserialize response for advertisement " + amId + ": " + stringResponse);
@@ -422,7 +423,7 @@ namespace CloningTool.RestClient
                         {
                             (stringResponse, server, requestId) = await HandleResponse(response);
                             response.EnsureSuccessStatusCode();
-                            _logger.LogInformation("Object {objectId} with version {versionId} has been updated with moderation status {status}", objectId, versionId, moderationResult.Status);
+                            _logger.LogInformation("Object {objectId} version {versionId} has been updated with moderation status {status}", objectId, versionId, moderationResult.Status);
                         }
                     }
                     catch (HttpRequestException ex)
@@ -461,8 +462,9 @@ namespace CloningTool.RestClient
                         (stringResponse, server, requestId) = await HandleResponse(response);
                         response.EnsureSuccessStatusCode();
 
-                        _logger.LogInformation("Created template {id} got version: {version}", templateId, response.Headers.ETag.Tag);
-                        return stringResponse;
+                        var newVersion = response.Headers.ETag.Tag.Trim('"');
+                        _logger.LogInformation("Created template {id} got version: {version}", templateId, newVersion);
+                        return newVersion;
                     }
                 }
             }
@@ -480,6 +482,52 @@ namespace CloningTool.RestClient
             catch (Exception ex)
             {
                 _logger.LogError(default, ex, "Template {id} creating error", templateId);
+                throw;
+            }
+        }
+
+        public async Task<IReadOnlyCollection<TemplateVersionRecord>> GetTemplateVersionsAsync(string templateId)
+        {
+            var server = string.Empty;
+            var requestId = string.Empty;
+            var stringResponse = string.Empty;
+            var methodUri = new Uri(_templateUri, templateId + "/version");
+            try
+            {
+                using (var response = await _authorizedHttpClient.GetAsync(methodUri))
+                {
+                    (stringResponse, server, requestId) = await HandleResponse(response);
+                    if (response.StatusCode == HttpStatusCode.NotFound &&
+                        server == DefaultServer)
+                    {
+                        _logger.LogInformation("Template {id} not found", templateId);
+                        return Array.Empty<TemplateVersionRecord>();
+                    }
+
+                    response.EnsureSuccessStatusCode();
+                    var versions = JsonConvert.DeserializeObject<IReadOnlyCollection<TemplateVersionRecord>>(stringResponse, ApiSerializerSettings.Default);
+                    if (versions == null || versions.Count < 1)
+                    {
+                        throw new SerializationException("Cannot deserialize template " + templateId + " versions: " + stringResponse);
+                    }
+
+                    return versions;
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(default,
+                                 ex,
+                                 "Request {requestId} to server {server} error while getting template {id} versions with response: {response}",
+                                 requestId,
+                                 server,
+                                 templateId,
+                                 stringResponse);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(default, ex, "Get template {id} versions error", templateId);
                 throw;
             }
         }
@@ -540,12 +588,13 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<ApiTemplateDescriptor> GetTemplateAsync(string templateId)
+        public async Task<ApiTemplateDescriptor> GetTemplateAsync(string templateId, string versionId = null)
         {
             var server = string.Empty;
             var requestId = string.Empty;
             var stringResponse = string.Empty;
-            var methodUri = new Uri(_templateUri, templateId);
+            var templateIdentifier = templateId + (string.IsNullOrEmpty(versionId) ? string.Empty : $"/{versionId}");
+            var methodUri = new Uri(_templateUri, templateIdentifier);
             try
             {
                 using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -554,7 +603,7 @@ namespace CloningTool.RestClient
                     if (response.StatusCode == HttpStatusCode.NotFound &&
                         server == DefaultServer)
                     {
-                        _logger.LogDebug("Template {id} not found", templateId);
+                        _logger.LogInformation("Template {id} not found", templateIdentifier);
                         return null;
                     }
 
@@ -562,7 +611,7 @@ namespace CloningTool.RestClient
                     var descriptor = JsonConvert.DeserializeObject<ApiTemplateDescriptor>(stringResponse, ApiSerializerSettings.Default);
                     if (descriptor == null)
                     {
-                        throw new SerializationException("Cannot deserialize template descriptor " + templateId + ": " + stringResponse);
+                        throw new SerializationException("Cannot deserialize template descriptor " + templateIdentifier + ": " + stringResponse);
                     }
 
                     return descriptor;
@@ -575,13 +624,13 @@ namespace CloningTool.RestClient
                                  "Request {requestId} to server {server} error while getting template {id} with response: {response}",
                                  requestId,
                                  server,
-                                 templateId,
+                                 templateIdentifier,
                                  stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get template {id} error", templateId);
+                _logger.LogError(default, ex, "Get template {id} error", templateIdentifier);
                 throw;
             }
         }
@@ -605,12 +654,14 @@ namespace CloningTool.RestClient
                         {
                             (stringResponse, server, requestId) = await HandleResponse(response);
                             response.EnsureSuccessStatusCode();
+                            var newVersion = response.Headers.ETag.Tag.Trim('"');
                             _logger.LogInformation(
                                 "Updated template {id} got new version: {version} (old version {oldVersion})",
                                 templateId,
-                                response.Headers.ETag.Tag,
+                                newVersion,
                                 versionId);
-                            return response.Headers.ETag.Tag;
+
+                            return newVersion;
                         }
                     }
                 }
@@ -619,10 +670,11 @@ namespace CloningTool.RestClient
             {
                 _logger.LogError(default,
                                  ex,
-                                 "Request {requestId} to server {server} error while updating template {id} with response: {response}",
+                                 "Request {requestId} to server {server} error while updating template {id} version {version} with response: {response}",
                                  requestId,
                                  server,
                                  templateId,
+                                 versionId,
                                  stringResponse);
                 throw;
             }
