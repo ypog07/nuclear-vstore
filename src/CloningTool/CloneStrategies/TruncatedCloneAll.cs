@@ -10,6 +10,7 @@ namespace CloningTool.CloneStrategies
         {
             _composite = new CompositeCloneStrategy(cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneTemplates),
                                                     cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneContentPositionsLinks),
+                                                    cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneRemarksWithCategories),
                                                     cloneStrategyProvider.GetCloneStrategy(CloneMode.TruncatedCloneAdvertisements));
         }
 

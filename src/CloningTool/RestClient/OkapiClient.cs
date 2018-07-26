@@ -32,6 +32,8 @@ namespace CloningTool.RestClient
         private readonly Uri _amUri;
         private readonly Uri _positionUri;
         private readonly Uri _searchUri;
+        private readonly Uri _remarkUri;
+        private readonly Uri _remarkCategoryUri;
         private readonly ILogger<OkapiClient> _logger;
         private readonly HttpClient _authorizedHttpClient = new HttpClient();
         private readonly HttpClient _unauthorizedHttpClient = new HttpClient();
@@ -43,6 +45,8 @@ namespace CloningTool.RestClient
             _templateUri = new Uri(apiBase, "template/");
             _positionUri = new Uri(apiBase, "nomenclature/");
             _searchUri = new Uri(apiBase, "search/");
+            _remarkUri = new Uri(apiBase, "remark/");
+            _remarkCategoryUri = new Uri(apiBase, "remarkCategory/");
             _amUri = new Uri(apiBase, "am/");
             _logger = logger;
             _authorizedHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
@@ -88,18 +92,18 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while advertisement {id} creating with response: {response}",
-                                 requestId,
-                                 server,
-                                 amId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while advertisement {id} creating with response: {response}",
+                    requestId,
+                    server,
+                    amId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Advertisement {id} creating error with response: {response}", amId, stringResponse);
+                _logger.LogError(ex, "Advertisement {id} creating error with response: {response}", amId, stringResponse);
                 throw;
             }
         }
@@ -139,18 +143,18 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting advertisement {id} with response: {response}",
-                                 requestId,
-                                 server,
-                                 amId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting advertisement {id} with response: {response}",
+                    requestId,
+                    server,
+                    amId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Getting advertisement {id} error", amId);
+                _logger.LogError(ex, "Getting advertisement {id} error", amId);
                 throw;
             }
         }
@@ -191,18 +195,67 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while updating advertisement {id} with response: {response}",
-                                 requestId,
-                                 server,
-                                 advertisementId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while updating advertisement {id} with response: {response}",
+                    requestId,
+                    server,
+                    advertisementId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Advertisement {id} update error", advertisementId);
+                _logger.LogError(ex, "Advertisement {id} update error", advertisementId);
+                throw;
+            }
+        }
+
+        public async Task CreateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory) =>
+            await CreateOrUpdateEntityAsync(new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory);
+
+        public async Task UpdateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory) =>
+            await CreateOrUpdateEntityAsync(new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory, true);
+
+        public async Task CreateRemarkAsync(string remarkId, Remark remark) =>
+            await CreateOrUpdateEntityAsync(new Uri(_remarkUri, remarkId), remarkId, remark);
+
+        public async Task UpdateRemarkAsync(string remarkId, Remark remark) =>
+            await CreateOrUpdateEntityAsync(new Uri(_remarkUri, remarkId), remarkId, remark, true);
+
+        private async Task CreateOrUpdateEntityAsync<T>(Uri methodUri, string entityId, T entity, bool updateEntity = false)
+        {
+            var server = string.Empty;
+            var requestId = string.Empty;
+            var stringResponse = string.Empty;
+            try
+            {
+                using (var content = new StringContent(JsonConvert.SerializeObject(entity, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                {
+                    var method = updateEntity ? HttpMethod.Put : HttpMethod.Post;
+                    var request = new HttpRequestMessage(method, methodUri) { Content = content };
+                    using (var response = await _authorizedHttpClient.SendAsync(request))
+                    {
+                        (stringResponse, server, requestId) = await HandleResponse(response);
+                        response.EnsureSuccessStatusCode();
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while creating {entityType} {id} with response: {response}",
+                    requestId,
+                    server,
+                    typeof(T).Name,
+                    entityId,
+                    stringResponse);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{entityType} {id} creating error", typeof(T).Name, entityId);
                 throw;
             }
         }
@@ -232,21 +285,95 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(default,
-                                     ex,
-                                     "Request {requestId} to server {server} error while getting new object for template {id} and lang {lang} with response: {response}",
-                                     requestId,
-                                     server,
-                                     templateId,
-                                     langCode,
-                                     stringResponse);
+                    _logger.LogError(
+                        ex,
+                        "Request {requestId} to server {server} error while getting new object for template {id} and lang {lang} with response: {response}",
+                        requestId,
+                        server,
+                        templateId,
+                        langCode,
+                        stringResponse);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(default, ex, "Get new object for template {id} and lang {lang} error", templateId, langCode);
+                    _logger.LogError(ex, "Get new object for template {id} and lang {lang} error", templateId, langCode);
                     throw;
                 }
+            }
+        }
+
+        public async Task<IReadOnlyCollection<Remark>> GetRemarksAsync()
+        {
+            var server = string.Empty;
+            var requestId = string.Empty;
+            var stringResponse = string.Empty;
+            try
+            {
+                using (var response = await _authorizedHttpClient.GetAsync(_remarkUri))
+                {
+                    (stringResponse, server, requestId) = await HandleResponse(response);
+                    response.EnsureSuccessStatusCode();
+                    var remarks = JsonConvert.DeserializeObject<IReadOnlyCollection<Remark>>(stringResponse, ApiSerializerSettings.Default);
+                    if (remarks == null)
+                    {
+                        throw new SerializationException("Cannot deserialize remarks: " + stringResponse);
+                    }
+
+                    return remarks;
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting remarks with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Get remarks error");
+                throw;
+            }
+        }
+
+        public async Task<IReadOnlyCollection<RemarkCategory>> GetRemarkCategoriesAsync()
+        {
+            var server = string.Empty;
+            var requestId = string.Empty;
+            var stringResponse = string.Empty;
+            try
+            {
+                using (var response = await _authorizedHttpClient.GetAsync(_remarkCategoryUri))
+                {
+                    (stringResponse, server, requestId) = await HandleResponse(response);
+                    response.EnsureSuccessStatusCode();
+                    var categories = JsonConvert.DeserializeObject<IReadOnlyCollection<RemarkCategory>>(stringResponse, ApiSerializerSettings.Default);
+                    if (categories == null)
+                    {
+                        throw new SerializationException("Cannot deserialize remark categories: " + stringResponse);
+                    }
+
+                    return categories;
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting remark categories with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Get remark categories error");
+                throw;
             }
         }
 
@@ -258,7 +385,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<ApiListAdvertisement>();
             try
             {
-                for (var pageNum = 1; ; ++pageNum)
+                for (var pageNum = 1;; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"am?template={templateId}&count={fetchSize ?? ApiFetchMaxSize}&page={pageNum}&sort=createdAt:desc");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -297,17 +424,17 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting advertisements with response: {response}",
-                                 requestId,
-                                 server,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting advertisements with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get advertisements error");
+                _logger.LogError(ex, "Get advertisements error");
                 throw;
             }
         }
@@ -321,7 +448,7 @@ namespace CloningTool.RestClient
             var idsList = string.Join(",", ids);
             try
             {
-                for (var pageNum = 1; ; ++pageNum)
+                for (var pageNum = 1;; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"am?id={idsList}&count={ApiFetchMaxSize}&page={pageNum}&sort=createdAt:desc");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -355,17 +482,17 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting advertisements with response: {response}",
-                                 requestId,
-                                 server,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting advertisements with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get advertisements error");
+                _logger.LogError(ex, "Get advertisements error");
                 throw;
             }
         }
@@ -389,18 +516,18 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(default,
-                                     ex,
-                                     "Request {requestId} to server {server} error while selecting object {objectId} to whitelist with response: {response}",
-                                     requestId,
-                                     server,
-                                     advertisementId,
-                                     stringResponse);
+                    _logger.LogError(
+                        ex,
+                        "Request {requestId} to server {server} error while selecting object {objectId} to whitelist with response: {response}",
+                        requestId,
+                        server,
+                        advertisementId,
+                        stringResponse);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(default, ex, "Error while selecting object {objectId} to whitelist", advertisementId);
+                    _logger.LogError(ex, "Error while selecting object {objectId} to whitelist", advertisementId);
                     throw;
                 }
             }
@@ -423,24 +550,28 @@ namespace CloningTool.RestClient
                         {
                             (stringResponse, server, requestId) = await HandleResponse(response);
                             response.EnsureSuccessStatusCode();
-                            _logger.LogInformation("Object {objectId} version {versionId} has been updated with moderation status {status}", objectId, versionId, moderationResult.Status);
+                            _logger.LogInformation(
+                                "Object {id} with version {versionId} has been updated with moderation status {status}",
+                                objectId,
+                                versionId,
+                                moderationResult.Status);
                         }
                     }
                     catch (HttpRequestException ex)
                     {
-                        _logger.LogError(default,
-                                         ex,
-                                         "Request {requestId} to server {server} error while updating object {objectId} moderation status {status} with response: {response}",
-                                         requestId,
-                                         server,
-                                         objectId,
-                                         moderationResult.Status,
-                                         stringResponse);
+                        _logger.LogError(
+                            ex,
+                            "Request {requestId} to server {server} error while updating object {objectId} moderation status {status} with response: {response}",
+                            requestId,
+                            server,
+                            objectId,
+                            moderationResult.Status,
+                            stringResponse);
                         throw;
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(default, ex, "Error while updating object {objectId} moderation status {status}", objectId, moderationResult.Status);
+                        _logger.LogError(ex, "Error while updating object {objectId} moderation status {status}", objectId, moderationResult.Status);
                         throw;
                     }
                 }
@@ -470,18 +601,18 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while creating template {id} with response: {response}",
-                                 requestId,
-                                 server,
-                                 templateId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while creating template {id} with response: {response}",
+                    requestId,
+                    server,
+                    templateId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Template {id} creating error", templateId);
+                _logger.LogError(ex, "Template {id} creating error", templateId);
                 throw;
             }
         }
@@ -540,7 +671,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<ApiListTemplate>();
             try
             {
-                for (var pageNum = 1; ; ++pageNum)
+                for (var pageNum = 1;; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"template?count={ApiFetchMaxSize}&page={pageNum}");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -573,8 +704,7 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
+                _logger.LogError(ex,
                                  "Request {requestId} to server {server} error while getting templates with response: {response}",
                                  requestId,
                                  server,
@@ -583,7 +713,7 @@ namespace CloningTool.RestClient
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get templates error");
+                _logger.LogError(ex, "Get templates error");
                 throw;
             }
         }
@@ -619,18 +749,18 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting template {id} with response: {response}",
-                                 requestId,
-                                 server,
-                                 templateIdentifier,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting template {id} with response: {response}",
+                    requestId,
+                    server,
+                    templateIdentifier,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get template {id} error", templateIdentifier);
+                _logger.LogError(ex, "Get template {id} error", templateIdentifier);
                 throw;
             }
         }
@@ -668,19 +798,18 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while updating template {id} version {version} with response: {response}",
-                                 requestId,
-                                 server,
-                                 templateId,
-                                 versionId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while updating template {id} with response: {response}",
+                    requestId,
+                    server,
+                    templateId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Template {id} update error", templateId);
+                _logger.LogError(ex, "Template {id} update error", templateId);
                 throw;
             }
         }
@@ -693,7 +822,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<PositionDescriptor>();
             try
             {
-                for (var pageNum = 1; ; ++pageNum)
+                for (var pageNum = 1;; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"nomenclature?isDeleted=false&isContentSales=true&count={ApiFetchMaxSize}&page={pageNum}");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -726,17 +855,17 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting positions with response: {response}",
-                                 requestId,
-                                 server,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting positions with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(default, ex, "Get positions error");
+                _logger.LogError(ex, "Get positions error");
                 throw;
             }
         }
@@ -760,19 +889,19 @@ namespace CloningTool.RestClient
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogError(default,
-                                     ex,
-                                     "Request {requestId} to server {server} error while creating link between position {positionId} and template {templateId} with response: {response}",
-                                     requestId,
-                                     server,
-                                     positionId,
-                                     templateId,
-                                     stringResponse);
+                    _logger.LogError(
+                        ex,
+                        "Request {requestId} to server {server} error while creating link between position {positionId} and template {templateId} with response: {response}",
+                        requestId,
+                        server,
+                        positionId,
+                        templateId,
+                        stringResponse);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(default, ex, "Error while creating link between position {positionId} and template {templateId}", positionId, templateId);
+                    _logger.LogError(ex, "Error while creating link between position {positionId} and template {templateId}", positionId, templateId);
                     throw;
                 }
             }
@@ -844,13 +973,14 @@ namespace CloningTool.RestClient
                                     stringResponse = (await HandleResponse(response)).ResponseContent;
                                     response.EnsureSuccessStatusCode();
                                     var rawValue = JsonConvert.DeserializeObject<ApiObjectElementRawValue>(stringResponse, ApiSerializerSettings.Default);
-                                    _logger.LogInformation("File {fileName} with content type {contentType} within advertisement {objectId} has been uploaded to {url} and got value {rawValue}. Headers: {headers}",
-                                                           fileName,
-                                                           contentType,
-                                                           advertisementId,
-                                                           url,
-                                                           rawValue.Raw,
-                                                           headers);
+                                    _logger.LogInformation(
+                                        "File {fileName} with content type {contentType} within advertisement {objectId} has been uploaded to {url} and got value {rawValue}. Headers: {headers}",
+                                        fileName,
+                                        contentType,
+                                        advertisementId,
+                                        url,
+                                        rawValue.Raw,
+                                        headers);
 
                                     return rawValue;
                                 }

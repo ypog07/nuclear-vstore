@@ -17,5 +17,9 @@ namespace CloningTool.RestClient
         Task SelectAdvertisementToWhitelistAsync(string advertisementId);
         Task<string> CreateAdvertisementAsync(long id, long firmId, ApiObjectDescriptor advertisement);
         Task<ApiObjectDescriptor> UpdateAdvertisementAsync(ApiObjectDescriptor advertisement);
+        Task CreateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory);
+        Task UpdateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory);
+        Task CreateRemarkAsync(string remarkId, Remark remark);
+        Task UpdateRemarkAsync(string remarkId, Remark remark);
     }
 }

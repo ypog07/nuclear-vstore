@@ -9,9 +9,12 @@ namespace CloningTool
         CloneAdvertisements = 2,
         CloneContentPositionsLinks = 4,
         CloneTemplatesWithLinks = CloneTemplates | CloneContentPositionsLinks,
-        CloneAll = CloneTemplates | CloneContentPositionsLinks | CloneAdvertisements,
+        CloneAll = CloneTemplates | CloneContentPositionsLinks | CloneRemarksWithCategories | CloneAdvertisements,
         TruncatedCloneAdvertisements = 8,
-        TruncatedCloneAll = CloneTemplates | CloneContentPositionsLinks | TruncatedCloneAdvertisements,
-        ReloadFiles = 16
+        TruncatedCloneAll = CloneTemplates | CloneContentPositionsLinks | CloneRemarksWithCategories | TruncatedCloneAdvertisements,
+        ReloadFiles = 16,
+        CloneRemarkCategories = 32,
+        CloneRemarks = 64,
+        CloneRemarksWithCategories = CloneRemarkCategories | CloneRemarks
     }
 }
