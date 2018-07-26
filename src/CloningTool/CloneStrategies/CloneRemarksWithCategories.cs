@@ -8,8 +8,9 @@ namespace CloningTool.CloneStrategies
 
         public CloneRemarksWithCategories(ICloneStrategyProvider cloneStrategyProvider)
         {
-            _composite = new CompositeCloneStrategy(cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneRemarkCategories),
-                                                    cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneRemarks));
+            _composite = new CompositeCloneStrategy(
+                cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneRemarkCategories),
+                cloneStrategyProvider.GetCloneStrategy(CloneMode.CloneRemarks));
         }
 
         public async Task<bool> ExecuteAsync() => await _composite.ExecuteAsync();

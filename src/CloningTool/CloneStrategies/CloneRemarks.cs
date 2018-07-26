@@ -111,16 +111,16 @@ namespace CloningTool.CloneStrategies
             _logger.LogInformation(
                 "Remark {id} is not equal in source and destination: {source} and {dest}",
                 sourceRemark.Id,
-                sourceRemark.Name,
-                destRemark.Name);
+                sourceRemark.Name.ToString(),
+                destRemark.Name.ToString());
 
             if (!_options.OverwriteUnequalRemarks)
             {
-                _logger.LogWarning("Skip cloning remark {id}", sourceRemark.Id);
+                _logger.LogWarning("Skip cloning remark {id} because {param} parameter is not set", sourceRemark.Id, nameof(_options.OverwriteUnequalRemarks));
                 return;
             }
 
-            _logger.LogWarning("Overwriting remark {id}...", sourceRemark.Id);
+            _logger.LogWarning("Overwriting remark {id} because {param} parameter is set", sourceRemark.Id, nameof(_options.OverwriteUnequalRemarks));
             await DestRestClient.UpdateRemarkAsync(sourceRemark.Id.ToString(), sourceRemark);
         }
     }

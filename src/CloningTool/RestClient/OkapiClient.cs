@@ -67,7 +67,7 @@ namespace CloningTool.RestClient
             var stringResponse = string.Empty;
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(advertisement, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(advertisement, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
                     using (var response = await _authorizedHttpClient.PutAsync(methodUri, content))
                     {
@@ -168,7 +168,7 @@ namespace CloningTool.RestClient
             var methodUri = new Uri(_amUri, advertisementId);
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(advertisement, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(advertisement, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
                     using (var request = new HttpRequestMessage(new HttpMethod("PATCH"), methodUri))
                     {
@@ -230,7 +230,7 @@ namespace CloningTool.RestClient
             var stringResponse = string.Empty;
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(entity, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(entity, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
                     var method = updateEntity ? HttpMethod.Put : HttpMethod.Post;
                     var request = new HttpRequestMessage(method, methodUri) { Content = content };
@@ -385,7 +385,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<ApiListAdvertisement>();
             try
             {
-                for (var pageNum = 1;; ++pageNum)
+                for (var pageNum = 1; ; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"am?template={templateId}&count={fetchSize ?? ApiFetchMaxSize}&page={pageNum}&sort=createdAt:desc");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -448,7 +448,7 @@ namespace CloningTool.RestClient
             var idsList = string.Join(",", ids);
             try
             {
-                for (var pageNum = 1;; ++pageNum)
+                for (var pageNum = 1; ; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"am?id={idsList}&count={ApiFetchMaxSize}&page={pageNum}&sort=createdAt:desc");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -533,10 +533,10 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task UpdateAdvertisementModerationStatusAsync(string objectId, string versionId, ModerationResult moderationResult)
+        public async Task UpdateAdvertisementModerationStatusAsync(long id, string versionId, ModerationResult moderationResult)
         {
-            var methodUri = new Uri(_amUri, $"{objectId}/version/{versionId}/moderation");
-            using (var content = new StringContent(JsonConvert.SerializeObject(moderationResult, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+            var methodUri = new Uri(_amUri, $"{id}/version/{versionId}/moderation");
+            using (var content = new StringContent(JsonConvert.SerializeObject(moderationResult, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
             {
                 using (var req = new HttpRequestMessage(HttpMethod.Put, methodUri))
                 {
@@ -551,27 +551,33 @@ namespace CloningTool.RestClient
                             (stringResponse, server, requestId) = await HandleResponse(response);
                             response.EnsureSuccessStatusCode();
                             _logger.LogInformation(
-                                "Object {id} with version {versionId} has been updated with moderation status {status}",
-                                objectId,
+                                "Advertisement {id} version {versionId} has been moderated with resolution {resolution}",
+                                id,
                                 versionId,
-                                moderationResult.Status);
+                                moderationResult.Resolution);
                         }
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogError(
                             ex,
-                            "Request {requestId} to server {server} error while updating object {objectId} moderation status {status} with response: {response}",
+                            "Request {requestId} to server {server} error while moderate advertisement {id} version {versionId} with resolution {resolution}; response: {response}",
                             requestId,
                             server,
-                            objectId,
-                            moderationResult.Status,
+                            id,
+                            versionId,
+                            moderationResult.Resolution,
                             stringResponse);
                         throw;
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error while updating object {objectId} moderation status {status}", objectId, moderationResult.Status);
+                        _logger.LogError(
+                            ex,
+                            "Error while moderate advertisement {id} version {versionId} with resolution {resolution}",
+                            id,
+                            versionId,
+                            moderationResult.Resolution);
                         throw;
                     }
                 }
@@ -586,7 +592,7 @@ namespace CloningTool.RestClient
             var stringResponse = string.Empty;
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
                     using (var response = await _authorizedHttpClient.PostAsync(methodUri, content))
                     {
@@ -647,13 +653,13 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(default,
-                                 ex,
-                                 "Request {requestId} to server {server} error while getting template {id} versions with response: {response}",
-                                 requestId,
-                                 server,
-                                 templateId,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting template {id} versions with response: {response}",
+                    requestId,
+                    server,
+                    templateId,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
@@ -671,7 +677,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<ApiListTemplate>();
             try
             {
-                for (var pageNum = 1;; ++pageNum)
+                for (var pageNum = 1; ; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"template?count={ApiFetchMaxSize}&page={pageNum}");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -704,11 +710,12 @@ namespace CloningTool.RestClient
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex,
-                                 "Request {requestId} to server {server} error while getting templates with response: {response}",
-                                 requestId,
-                                 server,
-                                 stringResponse);
+                _logger.LogError(
+                    ex,
+                    "Request {requestId} to server {server} error while getting templates with response: {response}",
+                    requestId,
+                    server,
+                    stringResponse);
                 throw;
             }
             catch (Exception ex)
@@ -774,7 +781,7 @@ namespace CloningTool.RestClient
             var methodUri = new Uri(_templateUri, templateId);
             try
             {
-                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, "application/json"))
+                using (var content = new StringContent(JsonConvert.SerializeObject(template, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
                     using (var request = new HttpRequestMessage(HttpMethod.Put, methodUri))
                     {
@@ -822,7 +829,7 @@ namespace CloningTool.RestClient
             var allDescriptors = new List<PositionDescriptor>();
             try
             {
-                for (var pageNum = 1;; ++pageNum)
+                for (var pageNum = 1; ; ++pageNum)
                 {
                     var methodUri = new Uri(_searchUri, $"nomenclature?isDeleted=false&isContentSales=true&count={ApiFetchMaxSize}&page={pageNum}");
                     using (var response = await _authorizedHttpClient.GetAsync(methodUri))
@@ -937,12 +944,13 @@ namespace CloningTool.RestClient
             }
         }
 
-        public async Task<ApiObjectElementRawValue> UploadFileAsync(long advertisementId,
-                                                                    Uri uploadUrl,
-                                                                    string fileName,
-                                                                    byte[] fileData,
-                                                                    MediaTypeHeaderValue contentType,
-                                                                    params NameValueHeaderValue[] headers)
+        public async Task<ApiObjectElementRawValue> UploadFileAsync(
+            long advertisementId,
+            Uri uploadUrl,
+            string fileName,
+            byte[] fileData,
+            MediaTypeHeaderValue contentType,
+            params NameValueHeaderValue[] headers)
         {
             var url = uploadUrl;
             var stringResponse = string.Empty;
@@ -1048,6 +1056,7 @@ namespace CloningTool.RestClient
                 server,
                 response.StatusCode,
                 stringResponse);
+
             return (stringResponse, server?.FirstOrDefault(), requestId?.FirstOrDefault());
         }
     }

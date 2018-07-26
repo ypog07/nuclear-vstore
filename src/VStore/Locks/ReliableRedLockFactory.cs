@@ -197,6 +197,7 @@ namespace NuClear.VStore.Locks
                                 ConnectTimeout = _lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
                                 SyncTimeout = _lockOptions.SyncTimeout ?? DefaultSyncTimeout,
                                 KeepAlive = keepAlive,
+
                                 // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
                                 ConfigCheckSeconds = keepAlive
                             };

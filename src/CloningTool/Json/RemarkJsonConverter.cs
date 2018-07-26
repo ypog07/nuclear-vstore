@@ -6,7 +6,6 @@ using Newtonsoft.Json.Linq;
 
 namespace CloningTool.Json
 {
-
     internal class RemarkJsonConverter : JsonConverter
     {
         public override bool CanRead => false;

@@ -18,7 +18,6 @@ namespace CloningTool.CloneStrategies
     {
         private readonly CloningToolOptions _options;
         private readonly ILogger<CloneRemarks> _logger;
-        private readonly JTokenEqualityComparer _jsonEqualityComparer = new JTokenEqualityComparer();
 
         public CloneRemarkCategories(
             CloningToolOptions options,
@@ -105,21 +104,21 @@ namespace CloningTool.CloneStrategies
                 return;
             }
 
-            if (!sourceCategory.Name.Properties().SequenceEqual(destCategory.Name.Properties(), _jsonEqualityComparer))
+            if (!JToken.DeepEquals(sourceCategory.Name, destCategory.Name))
             {
                 _logger.LogInformation(
                     "Remark category {id} has unequal names in source and destination: {source} and {dest}",
                     sourceCategory.Id,
-                    sourceCategory.Name,
-                    destCategory.Name);
+                    sourceCategory.Name.ToString(),
+                    destCategory.Name.ToString());
 
                 if (!_options.OverwriteUnequalRemarks)
                 {
-                    _logger.LogWarning("Skip cloning remark category {id}", sourceCategory.Id);
+                    _logger.LogWarning("Skip cloning remark category {id} because {param} parameter is not set", sourceCategory.Id, nameof(_options.OverwriteUnequalRemarks));
                     return;
                 }
 
-                _logger.LogWarning("Overwriting remark category {id}...", sourceCategory.Id);
+                _logger.LogWarning("Overwriting remark category {id} because {param} parameter is set", sourceCategory.Id, nameof(_options.OverwriteUnequalRemarks));
                 await DestRestClient.UpdateRemarkCategoryAsync(sourceCategory.Id.ToString(), sourceCategory);
             }
             else

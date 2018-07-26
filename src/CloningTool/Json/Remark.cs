@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace CloningTool.Json
@@ -17,6 +16,7 @@ namespace CloningTool.Json
         public JObject ModeratorDescription { get; set; }
         public RemarkApplicability Applicability { get; set; }
 
+        /// <inheritdoc />
         public bool Equals(Remark other)
         {
             if (other is null)
@@ -40,6 +40,7 @@ namespace CloningTool.Json
                    JToken.DeepEquals(ModeratorDescription, other.ModeratorDescription);
         }
 
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
             if (obj is null)
@@ -55,6 +56,7 @@ namespace CloningTool.Json
             return obj.GetType() == GetType() && Equals((Remark)obj);
         }
 
+        /// <inheritdoc />
         public override int GetHashCode()
         {
             unchecked
@@ -71,5 +73,8 @@ namespace CloningTool.Json
                 return hashCode;
             }
         }
+
+        /// <inheritdoc />
+        public override string ToString() => $"{Id} - {Name}";
     }
 }

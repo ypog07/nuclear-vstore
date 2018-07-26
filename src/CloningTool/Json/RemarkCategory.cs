@@ -7,6 +7,7 @@ namespace CloningTool.Json
         public long Id { get; set; }
         public JObject Name { get; set; }
 
+        /// <inheritdoc />
         public override string ToString() => $"{Id} - {Name}";
     }
 }

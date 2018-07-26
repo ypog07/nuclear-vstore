@@ -114,7 +114,7 @@ namespace VStore.UnitTests
                 _mockObjectsStorageReader.Verify(x => x.GetObjectDescriptor(ObjectId, ObjectVersion, It.IsAny<CancellationToken>()), Times.Exactly(1));
             }
 
-            _mockObjectsStorageReader.ResetCalls();
+            _mockObjectsStorageReader.Invocations.Clear();
             _mockObjectsStorageReader.Setup(x => x.GetObjectVersionsMetadata(It.IsAny<long>(), It.IsAny<string>()))
                                      .ThrowsAsync(new ObjectNotFoundException(string.Empty));
 

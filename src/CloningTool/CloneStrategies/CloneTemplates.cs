@@ -28,7 +28,8 @@ namespace CloningTool.CloneStrategies
         private IDictionary<long, ApiListTemplate> _destTemplates;
         private IDictionary<long, ApiListTemplate> _sourceTemplates;
 
-        public CloneTemplates(CloningToolOptions options,
+        public CloneTemplates(
+            CloningToolOptions options,
             IReadOnlyRestClientFacade sourceRestClient,
             IRestClientFacade destRestClient,
             ILogger<CloneTemplates> logger)
@@ -139,11 +140,12 @@ namespace CloningTool.CloneStrategies
                         destTemplateVersion = await DestRestClient.UpdateTemplateAsync(sourceTemplate, destTemplateVersion);
                     }
 
-                    _logger.LogInformation("Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
-                                           template.Id,
-                                           sourceTemplateVersion.VersionIndex,
-                                           sourceTemplateVersion.VersionId,
-                                           destTemplateVersion);
+                    _logger.LogInformation(
+                        "Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
+                        template.Id,
+                        sourceTemplateVersion.VersionIndex,
+                        sourceTemplateVersion.VersionId,
+                        destTemplateVersion);
                 }
             }
             else
@@ -177,11 +179,12 @@ namespace CloningTool.CloneStrategies
                         var sourceTemplate = await SourceRestClient.GetTemplateAsync(templateIdStr, sourceTemplateVersion.VersionId);
                         destTemplateVersion = await DestRestClient.UpdateTemplateAsync(sourceTemplate, destTemplateVersion);
 
-                        _logger.LogInformation("Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
-                                               template.Id,
-                                               sourceTemplateVersion.VersionIndex,
-                                               sourceTemplateVersion.VersionId,
-                                               destTemplateVersion);
+                        _logger.LogInformation(
+                            "Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
+                            template.Id,
+                            sourceTemplateVersion.VersionIndex,
+                            sourceTemplateVersion.VersionId,
+                            destTemplateVersion);
                     }
                 }
             }
@@ -241,11 +244,12 @@ namespace CloningTool.CloneStrategies
 
                 if (!Equals(firstElement.Placement, secondElement.Placement))
                 {
-                    _logger.LogInformation("Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
-                                           existedTemplate.Id,
-                                           firstElement.TemplateCode,
-                                           firstElement.Placement,
-                                           secondElement.Placement);
+                    _logger.LogInformation(
+                        "Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
+                        existedTemplate.Id,
+                        firstElement.TemplateCode,
+                        firstElement.Placement,
+                        secondElement.Placement);
                     return false;
                 }
 
