@@ -13,6 +13,7 @@ using CloningTool.RestClient;
 
 using Microsoft.Extensions.Logging;
 
+using NuClear.VStore.DataContract;
 using NuClear.VStore.Descriptors.Objects;
 using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Http;
@@ -32,14 +33,16 @@ namespace CloningTool.CloneStrategies
         private readonly bool _isTruncatedCloning;
 
         private long _uploadedBinariesCount;
+        private long _createdAdsVersions;
         private long _createdAdsCount;
         private long _selectedToWhitelistCount;
         private long _rejectedCount;
         private long _approvedCount;
         private long _draftedCount;
         private long _nominallyApprovedCount;
-        private IDictionary<long, ApiListTemplate> _sourceTemplates;
-        private IDictionary<long, ApiListTemplate> _destTemplates;
+        private IReadOnlyDictionary<long, IReadOnlyList<TemplateVersionRecord>> _sourceTemplates;
+        private IReadOnlyDictionary<long, IReadOnlyList<TemplateVersionRecord>> _destTemplates;
+        private IReadOnlyDictionary<(long, string), string> _templatesVersionsMap;
 
         protected CloneAdvertisementsBase(
             CloningToolOptions options,
@@ -62,7 +65,16 @@ namespace CloningTool.CloneStrategies
         public async Task<bool> ExecuteAsync()
         {
             ResetCounters();
-            await EnsureTemplatesAreLoaded();
+            if (!await LoadAndCheckTemplatesWithVersions())
+            {
+                _logger.LogWarning(
+                    "Try to synchronize templates in source and destination by setting {param} option to {mode}",
+                    nameof(CloningToolOptions.Mode),
+                    nameof(CloneMode.CloneTemplates));
+
+                return false;
+            }
+
             List<ApiListAdvertisement> advertisements;
             if (string.IsNullOrEmpty(_options.AdvertisementIdsFilename))
             {
@@ -117,7 +129,7 @@ namespace CloningTool.CloneStrategies
                                 advertisement.Id,
                                 advertisement.CreatedAt);
 
-                            await CloneAdvertisementAsync(advertisement, _options.FetchAdvertisementBeforeClone);
+                            await CloneAdvertisementAsync(advertisement);
                             Interlocked.Increment(ref clonedCount);
                         }
                         catch (Exception ex)
@@ -128,7 +140,7 @@ namespace CloningTool.CloneStrategies
                     });
 
             _logger.LogInformation("Total cloned advertisements: {cloned} of {total}", clonedCount, advertisements.Count);
-            _logger.LogInformation("Total created advertisements: {created}", _createdAdsCount);
+            _logger.LogInformation("Total created advertisements: {created} (created versions {createdVersions})", _createdAdsCount, _createdAdsVersions);
             _logger.LogInformation("Total uploaded binaries: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist: {selectedToWhitelistCount}", _selectedToWhitelistCount);
             _logger.LogInformation(
@@ -172,10 +184,76 @@ namespace CloningTool.CloneStrategies
             return ids;
         }
 
-        private async Task EnsureTemplatesAreLoaded()
+        private async Task<bool> LoadAndCheckTemplatesWithVersions()
         {
-            _sourceTemplates = _sourceTemplates ?? (await SourceRestClient.GetTemplatesAsync()).ToDictionary(p => p.Id);
-            _destTemplates = _destTemplates ?? (await DestRestClient.GetTemplatesAsync()).ToDictionary(p => p.Id);
+            var sourceTemplates = (await SourceRestClient.GetTemplatesAsync()).ToDictionary(p => p.Id);
+            var destTemplates = (await DestRestClient.GetTemplatesAsync()).ToDictionary(p => p.Id);
+
+            var missedInDest = sourceTemplates.Keys.Where(s => !destTemplates.ContainsKey(s)).ToList();
+            if (missedInDest.Count > 0)
+            {
+                _logger.LogError("Next {count} templates are not present in destination: {list}", missedInDest.Count, missedInDest);
+
+                return false;
+            }
+
+            _logger.LogInformation("All {count} source templates are present in destination", sourceTemplates.Count);
+            _logger.LogInformation("Total templates in destination: {count}", destTemplates.Count);
+
+            var sourceTemplatesVersions = new Dictionary<long, IReadOnlyList<TemplateVersionRecord>>();
+            var destTemplatesVersions = new Dictionary<long, IReadOnlyList<TemplateVersionRecord>>();
+            var templatesVersionsMap = new Dictionary<(long, string), string>();
+            foreach (var templateId in sourceTemplates.Keys)
+            {
+                var sourceTemplateVersions = (await SourceRestClient.GetTemplateVersionsAsync(templateId))
+                                             .OrderBy(v => v.VersionIndex)
+                                             .ToList();
+
+                var destTemplateVersions = (await DestRestClient.GetTemplateVersionsAsync(templateId))
+                                           .OrderBy(v => v.VersionIndex)
+                                           .ToList();
+
+                sourceTemplatesVersions[templateId] = sourceTemplateVersions;
+                destTemplatesVersions[templateId] = destTemplateVersions;
+                if (sourceTemplateVersions.Count != destTemplateVersions.Count)
+                {
+                    _logger.LogError(
+                        "Template {id} has different versions count in source and in destination ({countSource} and {countDest} respectively)",
+                        templateId,
+                        sourceTemplateVersions.Count,
+                        destTemplateVersions.Count);
+
+                    return false;
+                }
+
+                foreach (var (sourceVersion, destVersion) in sourceTemplateVersions.Zip(destTemplateVersions, (s, d) => (sourceVersion: s, destVersion: d)))
+                {
+                    var sourceCodes = new HashSet<int>(sourceVersion.ElementTemplateCodes);
+                    var destCodes = new HashSet<int>(destVersion.ElementTemplateCodes);
+                    if (sourceCodes.SetEquals(destCodes) && sourceVersion.ElementTemplateCodes.Count == destVersion.ElementTemplateCodes.Count)
+                    {
+                        templatesVersionsMap[(templateId, sourceVersion.VersionId)] = destVersion.VersionId;
+                        continue;
+                    }
+
+                    _logger.LogError(
+                        "Template {id} {index}-th version ({versionSource} and {versionDest})) has different template codes in source and in destination ({source} and {dest} respectively)",
+                        templateId,
+                        sourceVersion.VersionIndex,
+                        sourceVersion.VersionId,
+                        destVersion.VersionId,
+                        sourceVersion.ElementTemplateCodes,
+                        destVersion.ElementTemplateCodes);
+
+                    return false;
+                }
+            }
+
+            _sourceTemplates = sourceTemplatesVersions;
+            _destTemplates = destTemplatesVersions;
+            _templatesVersionsMap = templatesVersionsMap;
+
+            return true;
         }
 
         private async Task<bool> CloneFailedAdvertisements(IReadOnlyCollection<ApiListAdvertisement> failedAds)
@@ -183,7 +261,7 @@ namespace CloningTool.CloneStrategies
             ResetCounters();
             var clonedCount = 0;
             var totallyFailedAds = new ConcurrentBag<long>();
-            _logger.LogInformation("Start to clone failed advertisements, total {count}", failedAds.Count.ToString());
+            _logger.LogInformation("Start to clone failed advertisements (total {count})", failedAds.Count.ToString());
             await CloneHelpers.ParallelRunAsync(
                 failedAds,
                 _options.MaxDegreeOfParallelism,
@@ -196,7 +274,7 @@ namespace CloningTool.CloneStrategies
                             try
                             {
                                 ++tries;
-                                await CloneAdvertisementAsync(advertisement, true);
+                                await CloneAdvertisementAsync(advertisement);
                                 Interlocked.Increment(ref clonedCount);
                                 hasFailed = false;
                             }
@@ -216,7 +294,7 @@ namespace CloningTool.CloneStrategies
                     });
 
             _logger.LogInformation("Failed advertisements repeated cloning done, cloned: {cloned} of {total}", clonedCount, failedAds.Count);
-            _logger.LogInformation("Total created advertisements during repeated cloning: {created}", _createdAdsCount);
+            _logger.LogInformation("Total created advertisements during repeated cloning: {created} (created versions {createdVersions})", _createdAdsCount, _createdAdsVersions);
             _logger.LogInformation("Total uploaded binaries during repeated cloning: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist during repeated cloning: {selectedToWhitelistCount}", _selectedToWhitelistCount);
             _logger.LogInformation(
@@ -236,45 +314,89 @@ namespace CloningTool.CloneStrategies
             return false;
         }
 
-        private async Task CloneAdvertisementAsync(ApiListAdvertisement advertisement, bool fetchAdvertisementBeforeCloning)
+        private async Task CloneAdvertisementAsync(ApiListAdvertisement advertisement)
         {
-            ApiObjectDescriptor destDescriptor = null;
-            var objectId = advertisement.Id.ToString();
-            if (fetchAdvertisementBeforeCloning)
+            var id = advertisement.Id;
+            var createAdvertisementInDest = false;
+            var sourceVersions = await SourceRestClient.GetAdvertisementVersionsAsync(id);
+            _logger.LogInformation("Source advertisement {id} has {count} versions", id, sourceVersions.Count);
+
+            var destVersions = await DestRestClient.GetAdvertisementVersionsAsync(id);
+            if (destVersions.Count != 0)
             {
-                destDescriptor = await DestRestClient.GetAdvertisementAsync(advertisement.Id);
-                _logger.LogInformation("Object {id} has been fetched from destination preliminarily with version {versionId}", objectId, destDescriptor.VersionId);
+                _logger.LogInformation("Advertisement {id} already exists in destination with {count} versions", id, destVersions.Count);
+                if (destVersions.Count > sourceVersions.Count)
+                {
+                    throw new InvalidOperationException($"Advertisement {id} has more versions in destination than in source");
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Advertisement {id} doesn't exist in destination", id);
+                createAdvertisementInDest = true;
             }
 
-            var versionId = destDescriptor?.VersionId;
-            var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(advertisement.Id);
-            if (destDescriptor == null)
+            using (var enumerator = destVersions.Reverse().GetEnumerator())
             {
-                if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type)))
+                foreach (var sourceVersion in sourceVersions.Reverse())
                 {
-                    var newAm = await DestRestClient.CreateAdvertisementPrototypeAsync(advertisement.Template.Id, advertisement.Language.ToString(), advertisement.Firm.Id);
-                    await SendBinaryContent(sourceDescriptor, newAm);
-                }
+                    string destVersion = null;
+                    if (enumerator.MoveNext())
+                    {
+                        destVersion = enumerator.Current.Version;
+                    }
 
-                try
-                {
-                    sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
-                    versionId = await DestRestClient.CreateAdvertisementAsync(advertisement.Id, advertisement.Firm.Id, sourceDescriptor);
-                    Interlocked.Increment(ref _createdAdsCount);
-                }
-                catch (ObjectAlreadyExistsException ex)
-                {
-                    _logger.LogWarning(default, ex, "Object {id} already exists in destination, try to continue execution", objectId);
+                    await CloneAdvertisementVersionAsync(advertisement, sourceVersion.Version, destVersion, createAdvertisementInDest);
+                    createAdvertisementInDest = false;
                 }
             }
 
             if (advertisement.IsWhiteListed)
             {
-                await DestRestClient.SelectAdvertisementToWhitelistAsync(objectId);
+                await DestRestClient.SelectAdvertisementToWhitelistAsync(id);
                 Interlocked.Increment(ref _selectedToWhitelistCount);
             }
+        }
 
-            await ModerateAdvertisementAsync(advertisement.Id, versionId, sourceDescriptor);
+        private async Task CloneAdvertisementVersionAsync(ApiListAdvertisement advertisement, string sourceVersion, string destVersion, bool createAdvertisementInDest)
+        {
+            var id = advertisement.Id;
+            var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(id, sourceVersion);
+            if (string.IsNullOrEmpty(destVersion))
+            {
+                if (!_templatesVersionsMap.ContainsKey((sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)))
+                {
+                    throw new InvalidOperationException($"No mapping found for template {sourceDescriptor.TemplateId} version {sourceDescriptor.TemplateVersionId}");
+                }
+
+                if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type))) // TODO: AMS-1976
+                {
+                    var newAdv = await DestRestClient.CreateAdvertisementPrototypeAsync(advertisement.Template.Id, advertisement.Language.ToString(), advertisement.Firm.Id);
+                    await SendBinaryContent(sourceDescriptor, newAdv);
+                }
+
+                try
+                {
+                    sourceDescriptor.TemplateVersionId = _templatesVersionsMap[(sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)];
+                    if (createAdvertisementInDest)
+                    {
+                        destVersion = await DestRestClient.CreateAdvertisementAsync(id, advertisement.Firm.Id, sourceDescriptor);
+                        Interlocked.Increment(ref _createdAdsCount);
+                    }
+                    else
+                    {
+                        destVersion = (await DestRestClient.UpdateAdvertisementAsync(sourceDescriptor)).VersionId;
+                    }
+
+                    Interlocked.Increment(ref _createdAdsVersions);
+                }
+                catch (ObjectAlreadyExistsException ex)
+                {
+                    _logger.LogWarning(default, ex, "Advertisement {id} already exists in destination, try to continue execution", id);
+                }
+            }
+
+            await ModerateAdvertisementAsync(id, destVersion, sourceDescriptor);
         }
 
         private async Task ModerateAdvertisementAsync(long id, string versionId, ApiObjectDescriptor sourceDescriptor)
@@ -421,6 +543,7 @@ namespace CloningTool.CloneStrategies
         private void ResetCounters()
         {
             _createdAdsCount = 0L;
+            _createdAdsVersions = 0L;
             _uploadedBinariesCount = 0L;
             _approvedCount = 0L;
             _draftedCount = 0L;
