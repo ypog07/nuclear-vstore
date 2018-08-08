@@ -177,16 +177,16 @@ namespace CloningTool.RestClient
         }
 
         public async Task CreateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory) =>
-            await CreateOrUpdateEntityAsync(new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory);
+            await ModifyEntityStateAsync(HttpMethod.Post, new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory);
 
         public async Task UpdateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory) =>
-            await CreateOrUpdateEntityAsync(new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory, true);
+            await ModifyEntityStateAsync(HttpMethod.Put, new Uri(_remarkCategoryUri, remarkCategoryId), remarkCategoryId, remarkCategory);
 
         public async Task CreateRemarkAsync(string remarkId, Remark remark) =>
-            await CreateOrUpdateEntityAsync(new Uri(_remarkUri, remarkId), remarkId, remark);
+            await ModifyEntityStateAsync(HttpMethod.Post, new Uri(_remarkUri, remarkId), remarkId, remark);
 
         public async Task UpdateRemarkAsync(string remarkId, Remark remark) =>
-            await CreateOrUpdateEntityAsync(new Uri(_remarkUri, remarkId), remarkId, remark, true);
+            await ModifyEntityStateAsync(HttpMethod.Put, new Uri(_remarkUri, remarkId), remarkId, remark);
 
         public async Task<ApiObjectDescriptor> CreateAdvertisementPrototypeAsync(long templateId, string langCode, long firmId)
         {
@@ -888,7 +888,7 @@ namespace CloningTool.RestClient
             }
         }
 
-        private async Task CreateOrUpdateEntityAsync<T>(Uri methodUri, string entityId, T entity, bool updateEntity = false)
+        private async Task ModifyEntityStateAsync<T>(HttpMethod httpMethod, Uri methodUri, string entityId, T entity)
         {
             var server = string.Empty;
             var requestId = string.Empty;
@@ -897,8 +897,7 @@ namespace CloningTool.RestClient
             {
                 using (var content = new StringContent(JsonConvert.SerializeObject(entity, ApiSerializerSettings.Default), Encoding.UTF8, ContentType.Json))
                 {
-                    var method = updateEntity ? HttpMethod.Put : HttpMethod.Post;
-                    var request = new HttpRequestMessage(method, methodUri) { Content = content };
+                    var request = new HttpRequestMessage(httpMethod, methodUri) { Content = content };
                     using (var response = await _authorizedHttpClient.SendAsync(request))
                     {
                         (stringResponse, server, requestId) = await HandleResponse(response);
