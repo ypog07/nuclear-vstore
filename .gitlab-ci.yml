@@ -14,7 +14,7 @@ before_script:
 # ================= Test & Build =================
 
 build:app:
-  image: $REGISTRY/microsoft/dotnet:2.1.301-sdk-alpine3.7
+  image: $REGISTRY/microsoft/dotnet:2.1.302-sdk-alpine3.7
   stage: build
   when: always
   script:
@@ -23,8 +23,8 @@ build:app:
     - dotnet publish src/VStore.Host --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore
     - dotnet publish src/VStore.Worker --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore-worker
     - dotnet publish src/VStore.Renderer --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore-renderer
-    - cp lib/librdkafka-0.11.4-alpine.3.7.so publish/vstore/librdkafka.so
-    - cp lib/librdkafka-0.11.4-alpine.3.7.so publish/vstore-worker/librdkafka.so
+    - cp lib/librdkafka-0.11.5-alpine.3.7.so publish/vstore/librdkafka.so
+    - cp lib/librdkafka-0.11.5-alpine.3.7.so publish/vstore-worker/librdkafka.so
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_app"
@@ -36,7 +36,7 @@ build:app:
       - publish/vstore-renderer/
 
 build:cloning-tool:
-  image: $REGISTRY/microsoft/dotnet:2.1.301-sdk-alpine3.7
+  image: $REGISTRY/microsoft/dotnet:2.1.302-sdk-alpine3.7
   stage: build
   when: manual
   script:
@@ -146,7 +146,7 @@ deploy:relizard:review:
     GIT_STRATEGY: none
   environment:
     name: review/${CI_COMMIT_REF_SLUG}
-    url: http://vstore-${CI_COMMIT_REF_SLUG}.web-staging.2gis.ru/swagger
+    url: http://vstore-env-${CI_COMMIT_REF_SLUG}.web-staging.2gis.ru/swagger
     on_stop: destroy:relizard:stop-review
   only:
     - branches
@@ -177,6 +177,8 @@ destroy:relizard:stop-review:
     action: stop
   only:
     - branches
+  except:
+    - master
   script:
     - curl -s -X DELETE http://relizard-gecko.web-staging.2gis.ru/envs/env/${CI_COMMIT_REF_SLUG}
   dependencies: []

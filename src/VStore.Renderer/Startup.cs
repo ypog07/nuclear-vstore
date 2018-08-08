@@ -186,6 +186,14 @@ namespace NuClear.VStore.Renderer
 
         public void Configure(IApplicationBuilder app)
         {
+            app.UseMiddleware<HealthCheckMiddleware>();
+            app.UseMetricServer();
+            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
+            if (!_environment.IsProduction())
+            {
+                app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
+            }
+
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
                     {
@@ -209,11 +217,7 @@ namespace NuClear.VStore.Renderer
                                     await context.Response.WriteAsync(new JObject(new JProperty("error", error)).ToString());
                                 }
                     });
-            app.UseMiddleware<HealthCheckMiddleware>();
-            app.UseMetricServer();
-            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
-
             app.UseMvc();
 
             if (!_environment.IsProduction())

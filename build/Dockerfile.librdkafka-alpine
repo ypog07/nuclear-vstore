@@ -1,18 +1,22 @@
-FROM docker-hub.2gis.ru/microsoft/dotnet:2.1.1-runtime-deps-alpine3.7
+FROM alpine:3.7
 
 WORKDIR /librdkafka
 
 # Install requirements
-RUN apk add --update \
-        bash \
-        git \
-        make \
-        gcc \
-        g++
+RUN apk add --no-cache --virtual .build-deps \
+    bash \
+    g++ \
+    gcc \
+    git \
+    make \
+    python \
+# Optional deps to build with ssl, lz4:
+    lz4-dev \
+    cyrus-sasl-dev \
+    openssl-dev
 
 # Build librdkafka from source
 RUN git clone https://github.com/edenhill/librdkafka.git . \
-    && git checkout v0.11.4 \
+    && git checkout v0.11.5 \
     && ./configure \
-    && make \
-    && make install
+    && make
