@@ -160,8 +160,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
 
             var objectDescriptor = new ObjectDescriptor
                 {
@@ -200,8 +198,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
 
             var objectDescriptor = new ObjectDescriptor
                 {
@@ -248,8 +244,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
 
             var objectDescriptor = new ObjectDescriptor
                 {
@@ -300,8 +294,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
 
             var objectDescriptor = new ObjectDescriptor
                 {
@@ -356,8 +348,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
             _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
                                      .ReturnsAsync(
                                          new VersionedObjectDescriptor<string>(
@@ -421,8 +411,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
             _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
                                      .ReturnsAsync(
                                          new VersionedObjectDescriptor<string>(
@@ -493,8 +481,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
             _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
                                      .ReturnsAsync(
                                          new VersionedObjectDescriptor<string>(
@@ -585,8 +571,6 @@ namespace VStore.UnitTests.Persistence
                                      .ReturnsAsync(() => false);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
             _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
                                      .ReturnsAsync(
                                          new VersionedObjectDescriptor<string>(
@@ -670,12 +654,10 @@ namespace VStore.UnitTests.Persistence
                         }
                 };
 
-            _objectsStorageReaderMock.Setup(m => m.IsObjectExists(It.IsAny<long>()))
+            _objectsStorageReaderMock.Setup(m => m.IsObjectExists(ObjectId))
                                      .ReturnsAsync(() => false);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(It.IsAny<long>(), It.IsAny<string>()))
+            _templatesStorageReaderMock.Setup(m => m.GetTemplateDescriptor(TemplateId, TemplateVersionId))
                                        .ReturnsAsync(() => templateDescriptor);
-            _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
-                                       .ReturnsAsync(() => TemplateVersionId);
             _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
                                      .ReturnsAsync(
                                          new VersionedObjectDescriptor<string>(
