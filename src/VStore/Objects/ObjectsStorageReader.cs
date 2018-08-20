@@ -268,6 +268,8 @@ namespace NuClear.VStore.Objects
                     descriptor.Id,
                     descriptor.VersionId,
                     --maxVersionIndex,
+                    descriptor.TemplateId,
+                    descriptor.TemplateVersionId,
                     descriptor.LastModified,
                     new AuthorInfo(descriptor.Metadata.Author, descriptor.Metadata.AuthorLogin, descriptor.Metadata.AuthorName),
                     descriptor.Properties,
