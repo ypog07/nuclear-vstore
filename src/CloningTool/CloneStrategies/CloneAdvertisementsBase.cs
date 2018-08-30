@@ -317,7 +317,6 @@ namespace CloningTool.CloneStrategies
         private async Task CloneAdvertisementAsync(ApiListAdvertisement advertisement)
         {
             var id = advertisement.Id;
-            var createAdvertisementInDest = false;
             var sourceVersions = await SourceRestClient.GetAdvertisementVersionsAsync(id);
             _logger.LogInformation("Source advertisement {id} has {count} versions", id, sourceVersions.Count);
 
@@ -333,21 +332,24 @@ namespace CloningTool.CloneStrategies
             else
             {
                 _logger.LogInformation("Advertisement {id} doesn't exist in destination", id);
-                createAdvertisementInDest = true;
             }
 
-            using (var enumerator = destVersions.Reverse().GetEnumerator())
+            using (var destVersionsEnumerator = destVersions.Reverse().GetEnumerator())
             {
+                string destVersion = null;
                 foreach (var sourceVersion in sourceVersions.Reverse())
                 {
-                    string destVersion = null;
-                    if (enumerator.MoveNext())
+                    var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(id, sourceVersion.Version);
+                    if (destVersionsEnumerator.MoveNext())
                     {
-                        destVersion = enumerator.Current.Version;
+                        destVersion = destVersionsEnumerator.Current.Version;
+                    }
+                    else
+                    {
+                        destVersion = await CloneAdvertisementVersionAsync(sourceDescriptor, destVersion);
                     }
 
-                    await CloneAdvertisementVersionAsync(advertisement, sourceVersion.Version, destVersion, createAdvertisementInDest);
-                    createAdvertisementInDest = false;
+                    await ModerateAdvertisementAsync(id, destVersion, sourceDescriptor);
                 }
             }
 
@@ -358,45 +360,42 @@ namespace CloningTool.CloneStrategies
             }
         }
 
-        private async Task CloneAdvertisementVersionAsync(ApiListAdvertisement advertisement, string sourceVersion, string destVersion, bool createAdvertisementInDest)
+        private async Task<string> CloneAdvertisementVersionAsync(ApiObjectDescriptor sourceDescriptor, string lastDestVersion)
         {
-            var id = advertisement.Id;
-            var sourceDescriptor = await SourceRestClient.GetAdvertisementAsync(id, sourceVersion);
-            if (string.IsNullOrEmpty(destVersion))
+            string createdVersion = null;
+            if (!_templatesVersionsMap.ContainsKey((sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)))
             {
-                if (!_templatesVersionsMap.ContainsKey((sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)))
-                {
-                    throw new InvalidOperationException($"No mapping found for template {sourceDescriptor.TemplateId} version {sourceDescriptor.TemplateVersionId}");
-                }
-
-                if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type))) // TODO: AMS-1976
-                {
-                    var newAdv = await DestRestClient.CreateAdvertisementPrototypeAsync(advertisement.Template.Id, advertisement.Language.ToString(), advertisement.Firm.Id);
-                    await SendBinaryContent(sourceDescriptor, newAdv);
-                }
-
-                try
-                {
-                    sourceDescriptor.TemplateVersionId = _templatesVersionsMap[(sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)];
-                    if (createAdvertisementInDest)
-                    {
-                        destVersion = await DestRestClient.CreateAdvertisementAsync(id, advertisement.Firm.Id, sourceDescriptor);
-                        Interlocked.Increment(ref _createdAdsCount);
-                    }
-                    else
-                    {
-                        destVersion = (await DestRestClient.UpdateAdvertisementAsync(sourceDescriptor)).VersionId;
-                    }
-
-                    Interlocked.Increment(ref _createdAdsVersions);
-                }
-                catch (ObjectAlreadyExistsException ex)
-                {
-                    _logger.LogWarning(default, ex, "Advertisement {id} already exists in destination, try to continue execution", id);
-                }
+                throw new InvalidOperationException($"No mapping found for template {sourceDescriptor.TemplateId} version {sourceDescriptor.TemplateVersionId}");
             }
 
-            await ModerateAdvertisementAsync(id, destVersion, sourceDescriptor);
+            if (sourceDescriptor.Elements.Any(e => IsBinaryAdvertisementElementType(e.Type))) // TODO: AMS-1976
+            {
+                var newAdv = await DestRestClient.CreateAdvertisementPrototypeAsync(sourceDescriptor.TemplateId, sourceDescriptor.Language.ToString(), sourceDescriptor.Firm.Id);
+                await SendBinaryContent(sourceDescriptor, newAdv);
+            }
+
+            try
+            {
+                sourceDescriptor.TemplateVersionId = _templatesVersionsMap[(sourceDescriptor.TemplateId, sourceDescriptor.TemplateVersionId)];
+                if (string.IsNullOrEmpty(lastDestVersion))
+                {
+                    createdVersion = await DestRestClient.CreateAdvertisementAsync(sourceDescriptor.Id, sourceDescriptor.Firm.Id, sourceDescriptor);
+                    Interlocked.Increment(ref _createdAdsCount);
+                }
+                else
+                {
+                    sourceDescriptor.VersionId = lastDestVersion;
+                    createdVersion = (await DestRestClient.UpdateAdvertisementAsync(sourceDescriptor)).VersionId;
+                }
+
+                Interlocked.Increment(ref _createdAdsVersions);
+            }
+            catch (ObjectAlreadyExistsException ex)
+            {
+                _logger.LogWarning(default, ex, "Advertisement {id} already exists in destination, try to continue execution", sourceDescriptor.Id);
+            }
+
+            return createdVersion;
         }
 
         private async Task ModerateAdvertisementAsync(long id, string versionId, ApiObjectDescriptor sourceDescriptor)
